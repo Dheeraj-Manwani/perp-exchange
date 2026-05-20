@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  username     String    @unique
+  email        String?   @unique
+  passwordHash String
+  name         String?
+  isActive     Boolean   @default(true)
+  kycStatus    KycStatus @default(PENDING)
+  createdAt    DateTime  @default(now()) @db.Timestamptz()
+  updatedAt    DateTime  @updatedAt @db.Timestamptz()
+
+  orders       Order[]
+  fills        Fill[]        @relation("UserFills")
+  makerFills   Fill[]        @relation("MakerFills")
+  positions    Position[]
+  balances     Balance[]
+  transactions Transaction[]
+}
+
+model Market {
+  id         String  @id @default(uuid()) @db.Uuid
+
+  marketSlug String  @unique
+  symbol     String  @unique
+  imageUrl   String?
+
+  isActive   Boolean @default(true)
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  updatedAt DateTime @updatedAt @db.Timestamptz()
+
+  orders    Order[]
+  fills     Fill[]
+  positions Position[]
+}
+
+
+model Order {
+  id            String      @id @default(uuid()) @db.Uuid
+  userId        String      @db.Uuid
+  marketId      String      @db.Uuid
+
+  type          OrderType
+  side          OrderSide
+  status        OrderStatus @default(PENDING)
+
+  price         BigInt?     // null for MARKET orders
+  qty           BigInt
+  filledQty     BigInt      @default(0)
+  leverage      Int
+  reduceOnly    Boolean     @default(false)
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  updatedAt DateTime @updatedAt @db.Timestamptz()
+
+  user       User   @relation(fields: [userId], references: [id])
+  market     Market @relation(fields: [marketId], references: [id])
+  takerFills Fill[] @relation("TakerOrder")
+  makerFills Fill[] @relation("MakerOrder")
+
+  @@index([userId, marketId, status])
+  @@index([marketId, status])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model Fill {
+  id           String @id @default(uuid()) @db.Uuid
+  takerOrderId String @db.Uuid
+  makerOrderId String @db.Uuid
+  takerUserId  String @db.Uuid
+  makerUserId  String @db.Uuid
+  marketId     String @db.Uuid
+
+  price    BigInt
+  qty      BigInt
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+
+  takerOrder Order  @relation("TakerOrder", fields: [takerOrderId], references: [id])
+  makerOrder Order  @relation("MakerOrder", fields: [makerOrderId], references: [id])
+  takerUser  User   @relation("UserFills", fields: [takerUserId], references: [id])
+  makerUser  User   @relation("MakerFills", fields: [makerUserId], references: [id])
+  market     Market @relation(fields: [marketId], references: [id])
+
+  @@index([marketId, createdAt(sort: Desc)])
+  @@index([takerUserId, createdAt(sort: Desc)])
+  @@index([makerUserId, createdAt(sort: Desc)])
+  @@index([takerOrderId])
+  @@index([makerOrderId])
+}
+
+model Position {
+  id               String       @id @default(uuid()) @db.Uuid
+  userId           String       @db.Uuid
+  marketId         String       @db.Uuid
+  side             PositionSide
+  size             BigInt
+  entryPrice       BigInt
+  leverage         Int
+  margin           BigInt
+  unrealisedPnl    BigInt       @default(0)
+  realisedPnl      BigInt       @default(0)
+  liquidationPrice BigInt
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  updatedAt DateTime @updatedAt @db.Timestamptz()
+
+  user   User   @relation(fields: [userId], references: [id])
+  market Market @relation(fields: [marketId], references: [id])
+
+  @@unique([userId, marketId])
+  @@index([marketId])
+  @@index([userId])
+}
+
+model Balance {
+  id               String @id @default(uuid()) @db.Uuid
+  userId           String @db.Uuid
+  asset            String
+
+  availableBalance BigInt
+  lockedBalance    BigInt
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  updatedAt DateTime @updatedAt @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, asset])
+}
+
+
+model Transaction {
+  id           String          @id @default(uuid()) @db.Uuid
+  userId       String          @db.Uuid
+
+  type         TransactionType
+  asset        String
+
+  amount       BigInt
+  balanceAfter BigInt
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+// ── Enums ────────────────────────────────────────────────────
+
+enum KycStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OrderType {
+  LIMIT
+  MARKET
+  STOP_LIMIT
+  STOP_MARKET
+}
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderStatus {
+  PENDING
+  OPEN
+  PARTIALLY_FILLED
+  FILLED
+  CANCELLED
+  REJECTED
+  LIQUIDATED
+}
+
+enum PositionSide {
+  LONG
+  SHORT
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  TRADE_FEE
+  FUNDING
+  LIQUIDATION
+  REALISED_PNL
+  INSURANCE_FUND
+}
