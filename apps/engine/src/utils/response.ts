@@ -1,9 +1,9 @@
-import { EngineResponse, STREAM } from "@repo/schema";
+import { EngineResponse } from "@repo/schema";
 import { responseClient } from "./redis-client";
 
-export async function sendResponse(response: EngineResponse): Promise<void> {
+export async function sendResponse(responseQueue: string, response: EngineResponse): Promise<void> {
   await responseClient.xAdd(
-    STREAM,
+    responseQueue,
     "*",
     {
       data: JSON.stringify(response),

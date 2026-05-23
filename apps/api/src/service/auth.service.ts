@@ -9,6 +9,7 @@ import bcrypt from "bcrypt";
 import { getAccessToken, getRefreshToken } from "../lib/utils";
 import jwt from "jsonwebtoken";
 import { env } from "../lib/env";
+import { sendToEngine } from "../lib/engine-client";
 
 export const signUp = async (data: AuthInput) => {
   const { username, password } = data;
@@ -19,6 +20,8 @@ export const signUp = async (data: AuthInput) => {
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = await createUser(username, hashedPassword);
+
+  await sendToEngine("create_user", { id: user.id, username: user.username });
 
   const accessToken = getAccessToken(user);
   const refreshToken = getRefreshToken(user.id);

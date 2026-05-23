@@ -6,15 +6,16 @@ import {
   PendingResponse,
   STREAM,
 } from "@repo/schema";
-import { createClient } from "redis";
 import { env } from "./env";
 import { v4 as uuid } from "uuid";
 import { publisher, subscriber } from "./redis-client";
-import { Response, response } from "express";
+import { logger } from "@repo/logger";
 
 export const pendingResponses: Map<string, PendingResponse> = new Map();
 
-const waitForEngineToRespond = async (correlationId: string) => {
+const waitForEngineToRespond = (
+  correlationId: string,
+): Promise<EngineResponse> => {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       pendingResponses.delete(correlationId);
@@ -28,7 +29,7 @@ const waitForEngineToRespond = async (correlationId: string) => {
 export const sendToEngine = async (
   type: EngineCommandType,
   payload: Record<string, unknown>,
-) => {
+): Promise<EngineResponse> => {
   const correlationId = uuid();
   const data: EngineRequest = {
     correlationId,
@@ -39,7 +40,7 @@ export const sendToEngine = async (
 
   const responsePromise = waitForEngineToRespond(correlationId);
 
-  await publisher.xadd(
+  await publisher.xAdd(
     STREAM,
     "*",
     { data: JSON.stringify(data) },
@@ -55,28 +56,32 @@ export const sendToEngine = async (
   return responsePromise;
 };
 
-const listenToEngine = async () => {
+export const listenToEngine = async () => {
   for (;;) {
-    const response = await subscriber.xReadGroup(
+    const streams: any = await subscriber.xReadGroup(
       GROUP_MAIN_BACKEND,
-      "1",
-      { key: STREAM, id: ">" },
-      { COUNT: env.BATCH_SIZE, BLOCK: 0 },
+      "api-1",
+      { key: env.RESPONSE_QUEUE, id: ">" },
+      { COUNT: env.BATCH_SIZE, BLOCK: env.BLOCK_MS },
     );
-    if (!response) continue;
-    try {
-      const parsedResponse = JSON.parse(response) as EngineResponse;
+    if (!streams) continue;
 
-      resolveEngineResponse(parsedResponse);
-    } catch (error) {
-      console.error("Invalid engine response", error);
+    for (const stream of streams) {
+      for (const { id, message } of stream.messages) {
+        try {
+          const parsed = JSON.parse(message["data"]) as EngineResponse;
+          await subscriber.xAck(env.RESPONSE_QUEUE, GROUP_MAIN_BACKEND, id);
+          resolveEngineResponse(parsed);
+        } catch (error) {
+          logger.error({ id, error }, "Invalid engine response — skipping");
+        }
+      }
     }
   }
 };
 
-const resolveEngineResponse = async (response: EngineResponse) => {
+const resolveEngineResponse = (response: EngineResponse) => {
   const pending = pendingResponses.get(response.correlationId);
-
   if (!pending) return;
   clearTimeout(pending.timeout);
   pendingResponses.delete(response.correlationId);

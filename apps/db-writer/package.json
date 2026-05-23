@@ -1,0 +1,28 @@
+{
+  "name": "@repo/db-writer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@repo/schema": "workspace:*",
+    "@repo/logger": "workspace:*",
+    "@repo/db": "workspace:*",
+    "@types/node": "^22.15.3",
+    "dotenv": "^17.4.2",
+    "redis": "^5.12.1",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

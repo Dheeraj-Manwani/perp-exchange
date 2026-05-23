@@ -1,4 +1,8 @@
-export type EngineCommandType = "create_order" | "cancel_order" | "onramp";
+export type EngineCommandType =
+  | "create_order"
+  | "cancel_order"
+  | "onramp"
+  | "create_user";
 
 export interface EngineRequest {
   correlationId: string;
