@@ -6,10 +6,13 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@repo/db": "workspace:*",
+    "@repo/logger": "workspace:*",
     "@repo/schema": "workspace:*",
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.6",
@@ -20,12 +23,17 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "redis": "^5.12.1",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
+    "uuid": "^14.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@types/cookie-parser": "^1.4.10"
+    "@types/cookie-parser": "^1.4.10",
+    "@types/supertest": "^6.0.0",
+    "supertest": "^7.0.0",
+    "vitest": "^3.2.0"
   }
 }

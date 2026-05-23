@@ -1,22 +1,15 @@
-import express from "express";
-import cookieParser from "cookie-parser";
+import { app } from "./app";
+import { logger } from "@repo/logger";
 import { env } from "./lib/env";
-import { errorHandler } from "./middleware/errorHandler";
-import { unProtectedRoutes, protectedRoutes } from "./routes/index";
-import { authenticate } from "./middleware/auth.middleware";
+import { connectRedis } from "./lib/redis-client";
+import { setupStream } from "./lib/stream-setup";
 
-const app = express();
-const PORT = env.PORT;
+const main = async () => {
+  await connectRedis();
+  await setupStream();
+  app.listen(env.PORT, () => {
+    logger.info({ port: env.PORT }, "API server started");
+  });
+};
 
-app.use(express.json());
-app.use(cookieParser());
-
-app.use(unProtectedRoutes);
-app.use(authenticate);
-app.use(protectedRoutes);
-
-app.use(errorHandler);
-
-app.listen(PORT, () => {
-  console.log(`API running on port ${PORT}`);
-});
+main();

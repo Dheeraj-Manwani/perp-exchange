@@ -45,14 +45,18 @@ export const signIn = async (data: AuthInput) => {
 export const refresh = async (refreshToken?: string) => {
   if (!refreshToken)
     throw new AppError(401, ErrorCode.UNAUTHORIZED, "Unauthorized");
-  const { sub } = jwt.verify(refreshToken, env.REFRESH_TOKEN_SECRET) as {
-    sub: string;
-  };
+
+  let sub: string;
+  try {
+    ({ sub } = jwt.verify(refreshToken, env.REFRESH_TOKEN_SECRET) as {
+      sub: string;
+    });
+  } catch {
+    throw new AppError(401, ErrorCode.UNAUTHORIZED, "Unauthorized");
+  }
 
   const user = await getUserById(sub);
   if (!user) throw new AppError(401, ErrorCode.UNAUTHORIZED, "Unauthorized");
 
-  const accessToken = getAccessToken(user);
-
-  return { accessToken };
+  return getAccessToken(user);
 };

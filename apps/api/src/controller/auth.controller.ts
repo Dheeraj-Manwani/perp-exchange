@@ -31,6 +31,5 @@ export const signIn = async (req: Request, res: Response) => {
 export const refresh = async (req: Request, res: Response) => {
   const refreshToken = req.cookies.refresh;
   const token = await refreshService(refreshToken);
-
   ok(res, { token });
 };

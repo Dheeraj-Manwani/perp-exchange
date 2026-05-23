@@ -1,5 +1,4 @@
 import dotenv from "dotenv";
-import { v4 as uuid } from "uuid";
 
 dotenv.config();
 
@@ -10,14 +9,8 @@ function requireEnv(key: string): string {
 }
 
 export const env = {
-  ACCESS_TOKEN_SECRET: requireEnv("ACCESS_TOKEN_SECRET"),
-  REFRESH_TOKEN_SECRET: requireEnv("REFRESH_TOKEN_SECRET"),
   REDIS_URL: requireEnv("REDIS_URL"),
   NODE_ENV: process.env.NODE_ENV ?? "development",
-  PORT: process.env.PORT ?? "3001",
   ENGINE_QUEUE: "backend-to-engine-" + requireEnv("ENGINE_QUEUE_ID"),
   RESPONSE_QUEUE: "engine-to-backend-" + requireEnv("RESPONSE_QUEUE_ID"),
-  TIMEOUT_MS: Number(process.env.TIMEOUT_MS ?? "30000"),
-  BATCH_SIZE: Number(process.env.BATCH_SIZE ?? 10),
-  BLOCK_MS: Number(process.env.BLOCK_MS ?? 30_000),
 };

@@ -1,8 +1,15 @@
+import { authenticate } from "../middleware/auth.middleware";
 import authRouter from "./auth.routes";
+import orderRouter from "./order.routes";
+import balanceRouter from "./balances.routes";
 import { Router } from "express";
 
-export const protectedRoutes: Router = Router();
+export const routes: Router = Router();
 
-export const unProtectedRoutes: Router = Router();
-unProtectedRoutes.get("/health", (_req, res) => res.json({ status: "ok" }));
-unProtectedRoutes.use(authRouter);
+routes.get("/health", (_req, res) => res.json({ status: "ok" }));
+routes.use(authRouter);
+
+routes.use(authenticate);
+
+routes.use(orderRouter);
+routes.use(balanceRouter);
