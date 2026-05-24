@@ -54,6 +54,9 @@ vi.mock("@repo/db", () => {
         findUnique: vi.fn(),
         create: vi.fn(),
       },
+      balance: {
+        create: vi.fn(),
+      },
     },
     Prisma: {
       PrismaClientKnownRequestError,
@@ -62,3 +65,11 @@ vi.mock("@repo/db", () => {
     },
   };
 });
+
+// Mock engine client — tests must not require a live Redis or engine process.
+// Individual tests can override sendToEngine via vi.mocked(sendToEngine).mockResolvedValue(...)
+vi.mock("../lib/engine-client", () => ({
+  sendToEngine: vi.fn().mockResolvedValue({ correlationId: "test-cid", ok: true, data: undefined }),
+  listenToEngine: vi.fn().mockResolvedValue(undefined),
+  pendingResponses: new Map(),
+}));

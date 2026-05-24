@@ -3,6 +3,7 @@ import request from "supertest";
 import { prisma } from "@repo/db";
 import { app } from "../app";
 import { buildMockUser, generateAccessToken } from "./helpers";
+import { sendToEngine } from "../lib/engine-client";
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -87,11 +88,74 @@ describe("POST /onramp", () => {
       expect(res.body).toMatchObject({ success: false, code: "VALIDATION_ERROR" });
     });
 
-    // BUG #5: z.bigint() cannot parse a JSON number — amount arrives as a number
-    // from JSON and Zod rejects it. Fix: use z.coerce.bigint() in onRampInput schema.
-    // This test documents the correct expected behavior and will pass once bug #5 is fixed.
-    it.todo(
-      "returns 200 when a valid amount is deposited [blocked by bug #5: z.bigint() rejects JSON numbers]",
-    );
+    it("returns 400 when amount is a non-numeric string", async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(buildMockUser() as any);
+      const token = generateAccessToken();
+
+      const res = await request(app)
+        .post("/onramp")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ amount: "not-a-number" });
+
+      expect(res.status).toBe(400);
+      expect(res.body).toMatchObject({ success: false, code: "VALIDATION_ERROR" });
+    });
+  });
+
+  // ─── Happy path ───────────────────────────────────────────────────────────
+
+  describe("happy path", () => {
+    it("returns 200 and forwards the engine response when a valid integer amount is deposited", async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(buildMockUser() as any);
+      vi.mocked(sendToEngine).mockResolvedValue({ correlationId: "cid-1", ok: true, data: undefined });
+      const token = generateAccessToken();
+
+      const res = await request(app)
+        .post("/onramp")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ amount: 1000 });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ success: true });
+      expect(vi.mocked(sendToEngine)).toHaveBeenCalledWith(
+        "onramp",
+        expect.objectContaining({ userId: expect.any(String), amount: "1000" }),
+      );
+    });
+
+    it("accepts amount sent as a numeric string", async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(buildMockUser() as any);
+      vi.mocked(sendToEngine).mockResolvedValue({ correlationId: "cid-2", ok: true, data: undefined });
+      const token = generateAccessToken();
+
+      const res = await request(app)
+        .post("/onramp")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ amount: "5000" });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ success: true });
+    });
+
+    it("returns 200 and passes through engine error payload when engine reports failure", async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(buildMockUser() as any);
+      vi.mocked(sendToEngine).mockResolvedValue({
+        correlationId: "cid-3",
+        ok: false,
+        error: "account_not_found",
+      });
+      const token = generateAccessToken();
+
+      const res = await request(app)
+        .post("/onramp")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ amount: 500 });
+
+      // The controller currently forwards whatever the engine returns; once
+      // ISSUE-02 is fixed the engine will correctly surface errors and the
+      // service layer should map them to appropriate HTTP codes.
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ success: true });
+    });
   });
 });

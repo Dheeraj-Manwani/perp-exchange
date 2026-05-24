@@ -4,7 +4,6 @@ import {
   EngineResponse,
   GROUP_MAIN_BACKEND,
   PendingResponse,
-  STREAM,
 } from "@repo/schema";
 import { env } from "./env";
 import { v4 as uuid } from "uuid";
@@ -41,7 +40,7 @@ export const sendToEngine = async (
   const responsePromise = waitForEngineToRespond(correlationId);
 
   await publisher.xAdd(
-    STREAM,
+    env.ENGINE_QUEUE,
     "*",
     { data: JSON.stringify(data) },
     {

@@ -10,7 +10,10 @@
       "Bash(Select-Object -First 30)",
       "Bash(pnpm test *)",
       "Bash(Get-Content \"C:\\\\Users\\\\dheer\\\\OneDrive\\\\Desktop\\\\100x\\\\perp-exchange\\\\node_modules\\\\.pnpm\\\\@redis+client@5.12.1\\\\node_modules\\\\@redis\\\\client\\\\lib\\\\RESP\\\\decoder.ts\" -TotalCount 660)",
-      "Bash(Select-Object -Last 80)"
+      "Bash(Select-Object -Last 80)",
+      "Bash(Select-Object -First 50)",
+      "Bash(pnpm --filter @repo/api test)",
+      "Bash(bun run *)"
     ]
   }
 }

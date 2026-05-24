@@ -20,8 +20,7 @@ const VALID_LIMIT_ORDER = {
   type: "limit",
   side: "short",
   qty: 0.5,
-  // BUG #5 (related): price uses z.bigint() which rejects JSON numbers.
-  // Once fixed, add: price: 50000
+  // ISSUE-09: price uses z.bigint() which rejects JSON numbers; omitted until fixed.
 };
 
 describe("POST /order", () => {
@@ -140,14 +139,22 @@ describe("POST /order", () => {
       expect(res.body).toMatchObject({ success: false, code: "VALIDATION_ERROR" });
     });
 
-    // BUG #1/#6: createOrder parses input but sends no response — request hangs.
-    // BUG #5: price field uses z.bigint() which rejects JSON numbers.
-    // These tests are blocked until both bugs are fixed.
+    it("returns 501 for a valid market order (engine not yet implemented)", async () => {
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(buildMockUser() as any);
+      const token = generateAccessToken();
+
+      const res = await request(app)
+        .post("/order")
+        .set("Authorization", `Bearer ${token}`)
+        .send(VALID_MARKET_ORDER);
+
+      // 501 until ISSUE-03 (order book) is implemented.
+      expect(res.status).toBe(501);
+      expect(res.body).toMatchObject({ success: false, code: "NOT_IMPLEMENTED" });
+    });
+
     it.todo(
-      "returns 201 when a valid market order is submitted [blocked by bug #1/#6: controller sends no response]",
-    );
-    it.todo(
-      "returns 201 when a valid limit order is submitted [blocked by bug #5: z.bigint() rejects JSON number for price]",
+      "returns 201 for a valid limit order [blocked by ISSUE-09: z.bigint() rejects JSON price]",
     );
   });
 });

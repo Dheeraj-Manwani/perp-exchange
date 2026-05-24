@@ -25,7 +25,7 @@ const transport = isDev
       options: {
         colorize: true,
         translateTime: "SYS:HH:MM:ss.l",
-        ignore: "pid,hostname",
+        ignore: "pid,hostname,req,res,responseTime",
         messageFormat: "{msg}",
       },
     }
@@ -69,33 +69,21 @@ export function createLogger(bindings: Record<string, unknown>) {
  */
 export const httpLogger = pinoHttp({
   logger,
-  // Quiet down noisy health-check endpoints
   quietReqLogger: true,
   customSuccessMessage(req, res) {
-    if (res.statusCode >= 500) return "request errored";
-    if (res.statusCode >= 400) return "request rejected";
-    return "request completed";
+    return `${req.method} ${req.url} ${res.statusCode}`;
   },
-  customErrorMessage(_req, _res, err) {
-    return `request failed — ${err.message}`;
+  customErrorMessage(req, res, err) {
+    return `${req.method} ${req.url} ${res.statusCode} — ${err.message}`;
   },
-  // Assign a severity label matching common log-router conventions (GCP, Datadog)
   customLogLevel(_req, res, err) {
     if (err || res.statusCode >= 500) return "error";
     if (res.statusCode >= 400) return "warn";
     return "info";
   },
-  // Skip body logging — bodies may contain PII; log only what you need in controllers
   serializers: {
     req(req) {
-      return {
-        id: req.id,
-        method: req.method,
-        url: req.url,
-        userAgent: req.headers["user-agent"],
-        // Include userId if set by auth middleware
-        userId: (req.raw as { userId?: string }).userId,
-      };
+      return { method: req.method, url: req.url };
     },
   },
 });

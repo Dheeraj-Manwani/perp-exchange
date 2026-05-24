@@ -7,7 +7,6 @@ datasource db {
   provider = "postgresql"
 }
 
-
 model User {
   id           String    @id @default(uuid()) @db.Uuid
   username     String    @unique
@@ -28,13 +27,13 @@ model User {
 }
 
 model Market {
-  id         String  @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
   marketSlug String  @unique
   symbol     String  @unique
   imageUrl   String?
 
-  isActive   Boolean @default(true)
+  isActive Boolean @default(true)
 
   createdAt DateTime @default(now()) @db.Timestamptz()
   updatedAt DateTime @updatedAt @db.Timestamptz()
@@ -44,21 +43,22 @@ model Market {
   positions Position[]
 }
 
-
 model Order {
-  id            String      @id @default(uuid()) @db.Uuid
-  userId        String      @db.Uuid
-  marketId      String      @db.Uuid
+  id       String @id @default(uuid()) @db.Uuid
+  userId   String @db.Uuid
+  marketId String @db.Uuid
 
-  type          OrderType
-  side          OrderSide
-  status        OrderStatus @default(PENDING)
+  type   OrderType
+  side   OrderSide
+  status OrderStatus @default(PENDING)
 
-  price         BigInt?     // null for MARKET orders
-  qty           BigInt
-  filledQty     BigInt      @default(0)
-  leverage      Int
-  reduceOnly    Boolean     @default(false)
+  price    BigInt
+  qty      BigInt
+  slippage Int
+
+  filledQty  BigInt  @default(0)
+  leverage   Int
+  reduceOnly Boolean @default(false)
 
   createdAt DateTime @default(now()) @db.Timestamptz()
   updatedAt DateTime @updatedAt @db.Timestamptz()
@@ -81,8 +81,8 @@ model Fill {
   makerUserId  String @db.Uuid
   marketId     String @db.Uuid
 
-  price    BigInt
-  qty      BigInt
+  price BigInt
+  qty   BigInt
 
   createdAt DateTime @default(now()) @db.Timestamptz()
 
@@ -124,9 +124,9 @@ model Position {
 }
 
 model Balance {
-  id               String @id @default(uuid()) @db.Uuid
-  userId           String @db.Uuid
-  asset            String
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  asset  String
 
   availableBalance BigInt
   lockedBalance    BigInt
@@ -139,13 +139,12 @@ model Balance {
   @@unique([userId, asset])
 }
 
-
 model Transaction {
-  id           String          @id @default(uuid()) @db.Uuid
-  userId       String          @db.Uuid
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
 
-  type         TransactionType
-  asset        String
+  type  TransactionType
+  asset String
 
   amount       BigInt
   balanceAfter BigInt

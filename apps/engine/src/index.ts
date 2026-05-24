@@ -1,9 +1,9 @@
-import { EngineRequest, GROUP_ENGINE, STREAM } from "@repo/schema";
-import { Exchange } from "./core/Exchange";
+import { EngineRequest, GROUP_ENGINE } from "@repo/schema";
 import { brokerClient, connectRedis } from "./utils/redis-client";
 import { sendResponse } from "./utils/response";
 import { logger } from "@repo/logger";
 import { handleEngineRequest } from "./request-handler";
+import { env } from "./utils/env";
 
 (async () => {
   await connectRedis();
@@ -12,30 +12,27 @@ import { handleEngineRequest } from "./request-handler";
     const streams: any = await brokerClient.xReadGroup(
       GROUP_ENGINE,
       "engine-1",
-      { key: STREAM, id: ">" },
+      { key: env.ENGINE_QUEUE, id: ">" },
       { COUNT: 1, BLOCK: 0 },
     );
     if (!streams) continue;
 
     for (const stream of streams) {
       for (const { id, message } of stream.messages) {
-        console.log("id and message of stream.message ==== ", { id, message });
         let request: EngineRequest;
 
         try {
           const parsed = JSON.parse(message["data"]);
           if (!parsed.type || !parsed.responseQueue || !parsed.correlationId) {
-            logger.error(
-              { id, parsed },
-              "Skipping invalid engine request (missing required fields)",
-            );
-            await brokerClient.xAck(STREAM, GROUP_ENGINE, id);
+            logger.error("invalid message — missing required fields");
+            await brokerClient.xAck(env.ENGINE_QUEUE, GROUP_ENGINE, id);
             continue;
           }
           request = parsed as EngineRequest;
+          logger.info(request.type);
         } catch {
           logger.error({ id }, "Skipping unparseable broker message");
-          await brokerClient.xAck(STREAM, GROUP_ENGINE, id);
+          await brokerClient.xAck(env.ENGINE_QUEUE, GROUP_ENGINE, id);
           continue;
         }
 
@@ -54,7 +51,7 @@ import { handleEngineRequest } from "./request-handler";
           });
         }
 
-        await brokerClient.xAck(STREAM, GROUP_ENGINE, id);
+        await brokerClient.xAck(env.ENGINE_QUEUE, GROUP_ENGINE, id);
       }
     }
   }

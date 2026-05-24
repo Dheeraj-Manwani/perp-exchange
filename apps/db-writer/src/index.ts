@@ -1,42 +1,96 @@
-// import { backendToEngineClient } from "./lib/redis-client";
+import { EngineRequest, EngineResponse, GROUP_DB_SERVICE } from "@repo/schema";
+import { logger } from "@repo/logger";
+import {
+  backendToEngineClient,
+  engineToBackendClient,
+  connectRedis,
+} from "./lib/redis-client";
+import { env } from "./lib/env";
+import { handleBackendToEngine, handleEngineToBackend } from "./handlers";
 
-// for (;;) {
-//   const streams: any = await brokerClient.xReadGroup(
-//     GROUP_ENGINE,
-//     "engine-1",
-//     { key: STREAM, id: ">" },
-//     { COUNT: 1, BLOCK: 0 },
-//   );
-//   if (!streams) continue;
+const CONSUMER = "db-writer-1";
 
-//   for (const stream of streams) {
-//     for (const { id, message } of stream.messages) {
-//       let request: EngineRequest;
+const listenToCommandQueue = async () => {
+  for (;;) {
+    const streams: any = await backendToEngineClient.xReadGroup(
+      GROUP_DB_SERVICE,
+      CONSUMER,
+      { key: env.BACKEND_TO_ENGINE_QUEUE, id: ">" },
+      { COUNT: env.BATCH_SIZE, BLOCK: env.BLOCK_MS },
+    );
+    if (!streams) continue;
 
-//       try {
-//         request = JSON.parse(message["data"]) as EngineRequest;
-//       } catch {
-//         logger.error({ id }, "Skipping unparseable broker message");
-//         await brokerClient.xAck(STREAM, GROUP_ENGINE, id);
-//         continue;
-//       }
+    for (const stream of streams) {
+      for (const { id, message } of stream.messages) {
+        try {
+          const request = JSON.parse(message["data"]) as EngineRequest;
 
-//       try {
-//         const data = handleEngineRequest(message);
-//         await sendResponse({
-//           correlationId: message.correlationId,
-//           ok: true,
-//           data,
-//         });
-//       } catch (error) {
-//         await sendResponse({
-//           correlationId: message.correlationId,
-//           ok: false,
-//           error: error instanceof Error ? error.message : "engine_error",
-//         });
-//       }
+          await handleBackendToEngine(request);
 
-//       await brokerClient.xAck(STREAM, GROUP_ENGINE, id);
-//     }
-//   }
-// }
+          logger.info(request.type);
+          await backendToEngineClient.xAck(
+            env.BACKEND_TO_ENGINE_QUEUE,
+            GROUP_DB_SERVICE,
+            id,
+          );
+        } catch (error) {
+          logger.error(
+            { id, error },
+            "Failed to process command message — skipping",
+          );
+          await backendToEngineClient.xAck(
+            env.BACKEND_TO_ENGINE_QUEUE,
+            GROUP_DB_SERVICE,
+            id,
+          );
+        }
+      }
+    }
+  }
+};
+
+const listenToResponseQueue = async () => {
+  for (;;) {
+    const streams: any = await engineToBackendClient.xReadGroup(
+      GROUP_DB_SERVICE,
+      CONSUMER,
+      { key: env.ENGINE_TO_BACKEND_QUEUE, id: ">" },
+      { COUNT: env.BATCH_SIZE, BLOCK: env.BLOCK_MS },
+    );
+    if (!streams) continue;
+
+    for (const stream of streams) {
+      for (const { id, message } of stream.messages) {
+        try {
+          const response = JSON.parse(message["data"]) as EngineResponse;
+
+          await handleEngineToBackend(response);
+
+          logger.info(response.ok ? "response ok" : "response error");
+          await engineToBackendClient.xAck(
+            env.ENGINE_TO_BACKEND_QUEUE,
+            GROUP_DB_SERVICE,
+            id,
+          );
+        } catch (error) {
+          logger.error(
+            { id, error },
+            "Failed to process response message — skipping",
+          );
+          await engineToBackendClient.xAck(
+            env.ENGINE_TO_BACKEND_QUEUE,
+            GROUP_DB_SERVICE,
+            id,
+          );
+        }
+      }
+    }
+  }
+};
+
+(async () => {
+  await connectRedis();
+  logger.info("db-writer connected to Redis");
+
+  await Promise.all([listenToCommandQueue(), listenToResponseQueue()]);
+})();
