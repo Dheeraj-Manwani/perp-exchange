@@ -61,6 +61,7 @@
       "name": "@repo/engine",
       "version": "1.0.0",
       "dependencies": {
+        "@repo/db": "workspace:*",
         "@repo/logger": "workspace:*",
         "@repo/schema": "workspace:*",
         "@types/node": "^22.15.3",
@@ -68,6 +69,7 @@
         "redis": "^5.12.1",
         "tsx": "^4.22.3",
         "typescript": "^6.0.3",
+        "uuid": "^14.0.0",
       },
       "devDependencies": {
         "@repo/typescript-config": "workspace:*",

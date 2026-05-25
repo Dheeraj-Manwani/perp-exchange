@@ -10,13 +10,15 @@
     "lint": "eslint src/"
   },
   "dependencies": {
-    "@repo/schema": "workspace:*",
+    "@repo/db": "workspace:*",
     "@repo/logger": "workspace:*",
+    "@repo/schema": "workspace:*",
     "@types/node": "^22.15.3",
     "dotenv": "^17.4.2",
     "redis": "^5.12.1",
     "tsx": "^4.22.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*"

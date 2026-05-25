@@ -1,4 +1,9 @@
-import { EngineRequest, onRampPayload, signupPayload } from "@repo/schema";
+import {
+  EngineRequest,
+  onRampPayload,
+  orderInputSchema,
+  signupPayload,
+} from "@repo/schema";
 import { Exchange } from "./core/Exchange";
 import { Account } from "./core/Account";
 import { logger } from "@repo/logger";
@@ -19,7 +24,11 @@ export function handleEngineRequest(message: EngineRequest): unknown {
         exchange.accountService.onRamp(userId, BigInt(amount));
         return;
       }
-      case "create_order":
+      case "create_order": {
+        const data = orderInputSchema.parse(message.payload);
+
+        return;
+      }
       case "cancel_order":
         throw new Error(`Command not yet implemented: ${message.type}`);
       default:

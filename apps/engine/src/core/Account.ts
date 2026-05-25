@@ -1,7 +1,7 @@
 import { AccountParams } from "@repo/schema";
 import { DEFAULT_MAX_LEVERAGE } from "../utils/constants";
 import { InsufficientMarginError } from "../utils/errors";
-import { getMin } from "../utils/math";
+import { getMax, getMin } from "../utils/math";
 
 export class Account {
   readonly userId: string;
@@ -53,5 +53,13 @@ export class Account {
     this._available += amount;
 
     console.log("final === ", this._available);
+  }
+
+  consumeLockedMargin(amount: bigint): void {
+    this._locked = getMax(0n, this._locked - amount);
+  }
+
+  debitAvailable(amount: bigint): void {
+    this._available = getMax(0n, this._available - amount);
   }
 }

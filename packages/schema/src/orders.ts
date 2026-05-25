@@ -11,8 +11,10 @@ export const orderInputSchema = z.object({
   type: orderTypeSchema,
   side: orderSideSchema,
   qty: z.number().positive(),
-  price: z.bigint().positive().optional(),
-  leverage: z.number().int().optional(),
+  price: z.bigint().positive(),
+  slippage: z.bigint().optional().default(0n),
+  leverage: z.number().int().optional().default(0),
+  isReduceOnly: z.boolean().default(false),
 });
 
 export type OrderInput = z.infer<typeof orderInputSchema>;

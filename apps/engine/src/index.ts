@@ -4,10 +4,12 @@ import { sendResponse } from "./utils/response";
 import { logger } from "@repo/logger";
 import { handleEngineRequest } from "./request-handler";
 import { env } from "./utils/env";
+import { fetchLastState } from "./utils/startup";
 
 (async () => {
   await connectRedis();
-
+  // TODO: refinement needed for crash recovery in the startup logic (s3)
+  await fetchLastState();
   for (;;) {
     const streams: any = await brokerClient.xReadGroup(
       GROUP_ENGINE,
