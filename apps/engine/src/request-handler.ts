@@ -10,7 +10,9 @@ import { logger } from "@repo/logger";
 
 const exchange = Exchange.instance;
 
-export function handleEngineRequest(message: EngineRequest): unknown {
+export function handleEngineRequest(
+  message: EngineRequest,
+): Record<string, unknown> | undefined {
   try {
     switch (message.type) {
       case "create_user": {
@@ -26,8 +28,7 @@ export function handleEngineRequest(message: EngineRequest): unknown {
       }
       case "create_order": {
         const data = orderInputSchema.parse(message.payload);
-
-        return;
+        return exchange.orderService.placeOrder(message.userId, data);
       }
       case "cancel_order":
         throw new Error(`Command not yet implemented: ${message.type}`);

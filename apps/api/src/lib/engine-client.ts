@@ -28,9 +28,11 @@ const waitForEngineToRespond = (
 export const sendToEngine = async (
   type: EngineCommandType,
   payload: Record<string, unknown>,
+  userId: string,
 ): Promise<EngineResponse> => {
   const correlationId = uuid();
   const data: EngineRequest = {
+    userId,
     correlationId,
     type,
     payload,

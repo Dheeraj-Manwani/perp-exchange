@@ -5,6 +5,7 @@ export type EngineCommandType =
   | "create_user";
 
 export interface EngineRequest {
+  userId: string;
   correlationId: string;
   responseQueue: string;
   type: EngineCommandType;
@@ -12,9 +13,11 @@ export interface EngineRequest {
 }
 
 export interface EngineResponse {
+  userId: string;
   correlationId: string;
+  type: EngineCommandType;
   ok: boolean;
-  data?: unknown;
+  data?: Record<string, unknown>;
   error?: string;
 }
 

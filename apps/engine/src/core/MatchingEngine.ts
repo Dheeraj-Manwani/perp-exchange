@@ -49,7 +49,7 @@ export class MatchingEngine {
 
       // checking if best price in book is acceptable
       const crosses =
-        side === "long" ? levelPrice <= limitPrice : levelPrice >= limitPrice;
+        side === "LONG" ? levelPrice <= limitPrice : levelPrice >= limitPrice;
       if (!crosses) break;
 
       const consumed = orderbook.consumeAtLevel(
@@ -76,7 +76,7 @@ export class MatchingEngine {
             fillPrice,
             fillQty,
             taker,
-            isLimitOrder: type === "limit",
+            isLimitOrder: type === "LIMIT",
           });
 
           takerFills.push({
@@ -109,6 +109,7 @@ export class MatchingEngine {
           const makerFee = mulDiv([fillPrice, fillQty, MAKER_FEE_RATE]);
           makerFills.push({
             orderId: cf.makerOrderId,
+            makerUserId: cf.makerUserId,
             fillQty,
             fillPrice,
             fee: makerFee,
@@ -157,12 +158,6 @@ export class MatchingEngine {
       isLimitOrder,
     } = params;
 
-    const fillMargin = mulDiv([fillPrice, fillQty], [leverage], "UP");
-    const takerFee = mulDiv([fillPrice, fillQty, TAKER_FEE_RATE]);
-
-    taker.consumeLockedMargin(fillMargin);
-    taker.debitAvailable(takerFee);
-
     const fill: Fill = {
       fillId: uuid(),
       orderId,
@@ -173,6 +168,13 @@ export class MatchingEngine {
 
     // No existing position, or same direction
     if (!existing || existing.side === side) {
+      // consuming full margin for same side existing / new orders
+      const fillMargin = mulDiv([fillPrice, fillQty], [leverage], "UP");
+      const takerFee = mulDiv([fillPrice, fillQty, TAKER_FEE_RATE]);
+
+      taker.consumeLockedMargin(fillMargin);
+      taker.debitAvailable(takerFee);
+
       if (existing) {
         existing.applyFill(fill, fillMargin);
       } else {
@@ -181,7 +183,7 @@ export class MatchingEngine {
             positionId,
             userId,
             market: symbol,
-            orderType: isLimitOrder ? "limit" : "market",
+            orderType: isLimitOrder ? "LIMIT" : "MARKET",
             side,
             qty: fillQty,
             margin: fillMargin,
@@ -192,6 +194,54 @@ export class MatchingEngine {
         );
       }
       return;
+    }
+
+    // closing opposite positions and opening new
+    const closeQty = Math.min(fillQty, existing.qty);
+    const openQty = fillQty - closeQty;
+
+    // const closingFillMargin = mulDiv([closeQty, fillPrice], [leverage]);
+    // taker.creditAvailable(closingFillMargin);
+
+    const realizedPnl =
+      existing.side === "LONG"
+        ? mulDiv([fillPrice - existing.averagePrice, closeQty])
+        : mulDiv([existing.averagePrice - fillPrice, closeQty]);
+
+    const { closedMargin } = existing.reduceBy(closeQty);
+    const proceeds = closedMargin + realizedPnl;
+    if (proceeds > 0) {
+      taker.creditAvailable(proceeds);
+    }
+
+    // Flip: if the fill exceeds the existing position, open a new one in the new direction.
+    if (openQty > 1e-10) {
+      const openFillMargin = mulDiv([openQty, fillPrice], [leverage], "UP");
+      const openTakerFee = mulDiv([openQty, fillPrice, TAKER_FEE_RATE]);
+
+      taker.consumeLockedMargin(openFillMargin);
+      taker.debitAvailable(openTakerFee);
+
+      const openFill: Fill = {
+        fillId: uuid(),
+        orderId,
+        price: fillPrice,
+        qty: openQty,
+      };
+      this.positions.add(
+        new Position({
+          positionId: uuid(),
+          userId,
+          market: symbol,
+          orderType: isLimitOrder ? "LIMIT" : "MARKET",
+          side,
+          qty: openQty,
+          margin: openFillMargin,
+          leverage,
+          averagePrice: fillPrice,
+          fills: [openFill],
+        }),
+      );
     }
   }
 
@@ -238,7 +288,7 @@ export class MatchingEngine {
           positionId: uuid(),
           userId,
           market: symbol,
-          orderType: "limit",
+          orderType: "LIMIT",
           side,
           qty: fillQty,
           margin: fillMargin,

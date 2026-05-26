@@ -3,6 +3,7 @@ import {
   computeWeightedAveragePrice,
   getLiquidationPrice,
 } from "../utils/utils";
+import { mulDiv } from "../utils/math";
 
 export class Position {
   readonly positionId: string;
@@ -59,5 +60,20 @@ export class Position {
       this.leverage,
       this.side,
     );
+  }
+
+  reduceBy(qty: number): { closedMargin: bigint } {
+    const proportion = qty / this.qty;
+    const closedMargin = mulDiv([this.margin, proportion]);
+    this.qty -= qty;
+    this.margin -= closedMargin;
+    if (this.qty < 1e-10) this.close();
+    return { closedMargin };
+  }
+
+  close(): void {
+    this.isOpen = false;
+    this.qty = 0;
+    this.margin = 0n;
   }
 }

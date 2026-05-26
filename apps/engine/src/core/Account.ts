@@ -59,6 +59,10 @@ export class Account {
     this._locked = getMax(0n, this._locked - amount);
   }
 
+  creditAvailable(amount: bigint): void {
+    this._available += amount;
+  }
+
   debitAvailable(amount: bigint): void {
     this._available = getMax(0n, this._available - amount);
   }

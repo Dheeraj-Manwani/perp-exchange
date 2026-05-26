@@ -41,12 +41,16 @@ import { fetchLastState } from "./utils/startup";
         try {
           const data = handleEngineRequest(request);
           await sendResponse(request.responseQueue, {
+            userId: request.userId,
+            type: request.type,
             correlationId: request.correlationId,
             ok: true,
             data,
           });
         } catch (error) {
           await sendResponse(request.responseQueue, {
+            userId: request.userId,
+            type: request.type,
             correlationId: request.correlationId,
             ok: false,
             error: error instanceof Error ? error.message : "engine_error",

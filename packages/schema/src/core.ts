@@ -41,6 +41,7 @@ export type OrderFill = {
 
 export type MakerFillEvent = {
   orderId: string;
+  makerUserId: string;
   fillQty: number;
   fillPrice: bigint;
   fee: bigint;

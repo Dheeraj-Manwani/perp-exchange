@@ -8,15 +8,16 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid()) @db.Uuid
-  username     String    @unique
-  email        String?   @unique
+  id           String  @id @default(uuid()) @db.Uuid
+  username     String  @unique
+  email        String? @unique
   passwordHash String
   name         String?
-  isActive     Boolean   @default(true)
-  kycStatus    KycStatus @default(PENDING)
-  createdAt    DateTime  @default(now()) @db.Timestamptz()
-  updatedAt    DateTime  @updatedAt @db.Timestamptz()
+
+  isActive  Boolean   @default(true)
+  kycStatus KycStatus @default(PENDING)
+  createdAt DateTime  @default(now()) @db.Timestamptz()
+  updatedAt DateTime  @updatedAt @db.Timestamptz()
 
   orders       Order[]
   fills        Fill[]        @relation("UserFills")
@@ -49,15 +50,15 @@ model Order {
   marketId String @db.Uuid
 
   type   OrderType
-  side   OrderSide
+  side   Side
   status OrderStatus @default(PENDING)
 
   price    BigInt
   qty      BigInt
-  slippage Int
+  slippage Int?
 
   filledQty  BigInt  @default(0)
-  leverage   Int
+  leverage   Int     @default(1)
   reduceOnly Boolean @default(false)
 
   createdAt DateTime @default(now()) @db.Timestamptz()
@@ -100,23 +101,25 @@ model Fill {
 }
 
 model Position {
-  id               String       @id @default(uuid()) @db.Uuid
-  userId           String       @db.Uuid
-  marketId         String       @db.Uuid
-  side             PositionSide
+  id String @id @default(uuid()) @db.Uuid
+
+  side             Side
   size             BigInt
   entryPrice       BigInt
   leverage         Int
   margin           BigInt
-  unrealisedPnl    BigInt       @default(0)
-  realisedPnl      BigInt       @default(0)
+  unrealisedPnl    BigInt @default(0)
+  realisedPnl      BigInt @default(0)
   liquidationPrice BigInt
 
   createdAt DateTime @default(now()) @db.Timestamptz()
   updatedAt DateTime @updatedAt @db.Timestamptz()
 
+  userId String @db.Uuid
   user   User   @relation(fields: [userId], references: [id])
-  market Market @relation(fields: [marketId], references: [id])
+
+  marketId String @db.Uuid
+  market   Market @relation(fields: [marketId], references: [id])
 
   @@unique([userId, marketId])
   @@index([marketId])
@@ -171,11 +174,6 @@ enum OrderType {
   STOP_MARKET
 }
 
-enum OrderSide {
-  BUY
-  SELL
-}
-
 enum OrderStatus {
   PENDING
   OPEN
@@ -186,7 +184,7 @@ enum OrderStatus {
   LIQUIDATED
 }
 
-enum PositionSide {
+enum Side {
   LONG
   SHORT
 }

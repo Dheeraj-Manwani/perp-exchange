@@ -1,4 +1,8 @@
-import { MakerFillEvent, OrderInput } from "@repo/schema";
+import {
+  CreateOrderEngineResponse,
+  MakerFillEvent,
+  OrderInput,
+} from "@repo/schema";
 import { UserRegistry } from "../core/UserRegistry";
 import { Account } from "../core/Account";
 import { OrderbookRegistry } from "../core/OrderbookRegistry";
@@ -6,7 +10,7 @@ import { mulDiv } from "./../utils/math";
 import { MatchingEngine } from "../core/MatchingEngine";
 import { PositionManager } from "../core/PositionManager";
 import { v4 as uuid } from "uuid";
-import { OrderStatus } from "@repo/db";
+import { getOppositeSide } from "../utils/utils";
 
 export class OrderService {
   private readonly matching: MatchingEngine;
@@ -23,12 +27,22 @@ export class OrderService {
     const account = this.users.getById(userId);
     if (!account) throw new Error("User not found");
 
-    // TODO: implement reduce only orders
+    let netQty = input.qty;
+
+    const existingPosition = this.positions.get(userId, input.symbol);
+    if (
+      existingPosition &&
+      existingPosition.side === getOppositeSide(input.side)
+    ) {
+      input.isReduceOnly = true;
+      netQty = Math.max(input.qty - existingPosition.qty, 0);
+    }
+
     if (input.leverage > account.maxLeverage)
       throw new Error("Leverage not acceptable");
 
     const estimatedMargin = mulDiv(
-      [input.price, input.qty, 1n + input.slippage / 10000n],
+      [input.price, netQty, 1n + input.slippage / 10000n],
       [],
       "UP",
     );
@@ -37,12 +51,16 @@ export class OrderService {
     account.assertSufficientMargin(estimatedMargin);
     account.lockMargin(estimatedMargin);
 
-    return input.type === "market"
+    return input.type === "MARKET"
       ? this.placeMarketOrder(userId, account, input)
       : this.placeLimitOrder(userId, account, input);
   }
 
-  placeMarketOrder(userId: string, account: Account, input: OrderInput) {
+  placeMarketOrder(
+    userId: string,
+    account: Account,
+    input: OrderInput,
+  ): CreateOrderEngineResponse {
     const orderbook = this.orderbooks.get(input.symbol);
 
     const orderId = uuid();
@@ -65,7 +83,7 @@ export class OrderService {
       account,
     );
 
-    const status: OrderStatus =
+    const status =
       result.filledQty >= input.qty
         ? "FILLED"
         : result.filledQty > 0
@@ -73,38 +91,37 @@ export class OrderService {
           : "OPEN";
 
     const avgFillPrice =
-      result.filledQty > 0 ? mulDiv([result.fillValue], [result.filledQty]) : 0;
-
-    // TODO: make the db poller save and update orders
-    // this.orders.push({
-    //   orderId,
-    //   positionId,
-    //   userId,
-    //   market: input.symbol,
-    //   side: input.side,
-    //   type: "market",
-    //   qty: input.qty,
-    //   status,
-    //   leverage: input.leverage,
-    //   createdAt: Date.now(),
-    //   filledQty: result.filledQty,
-    //   remainingQty: result.unfilled,
-    //   avgFillPrice,
-    //   fills: result.takerFills,
-    // });
-
-    // TODO: make the db poller save and update orders
-    this.updateMakerOrders(result.makerFills);
+      result.filledQty > 0
+        ? mulDiv([result.fillValue], [result.filledQty])
+        : 0n;
 
     return {
-      success: true,
       orderId,
+      symbol: input.symbol,
+      type: input.type,
+      side: input.side,
+      qty: input.qty,
+      price: input.price.toString(),
+      slippage: input.slippage.toString(),
+      leverage: input.leverage,
+      isReduceOnly: input.isReduceOnly,
       filledQty: result.filledQty,
       unfilled: result.unfilled,
-      avgFillPrice,
+      avgFillPrice: avgFillPrice.toString(),
+      status,
+      fills: result.makerFills.map((mf) => ({
+        makerOrderId: mf.orderId,
+        makerUserId: mf.makerUserId,
+        price: mf.fillPrice.toString(),
+        qty: mf.fillQty,
+      })),
     };
   }
-  placeLimitOrder(userId: string, account: Account, input: OrderInput) {
+  placeLimitOrder(
+    userId: string,
+    account: Account,
+    input: OrderInput,
+  ): CreateOrderEngineResponse {
     const orderId = uuid();
     const positionId = uuid();
     const orderbook = this.orderbooks.get(input.symbol);
@@ -161,67 +178,38 @@ export class OrderService {
       );
     }
 
-    const status: OrderStatus =
+    const status =
       result.unfilled === 0
-        ? "filled"
+        ? "FILLED"
         : result.filledQty > 0
-          ? "partially_filled"
-          : "open";
+          ? "PARTIALLY_FILLED"
+          : "OPEN";
 
     const avgFillPrice =
-      result.filledQty > 0 ? mulDiv([result.fillValue], [result.filledQty]) : 0;
-
-    // TODO: make the db poller save and update orders
-    // this.orders.push({
-    //   orderId,
-    //   positionId,
-    //   userId,
-    //   market: input.symbol,
-    //   side: input.side,
-    //   type: "limit",
-    //   qty: input.qty,
-    //   price: input.price,
-    //   status,
-    //   leverage: input.leverage,
-    //   createdAt: Date.now(),
-    //   filledQty: result.filledQty,
-    //   remainingQty: result.unfilled,
-    //   avgFillPrice,
-    //   fills: result.takerFills,
-    // });
-
-    // TODO: make the db poller save and update orders
-    this.updateMakerOrders(result.makerFills);
+      result.filledQty > 0
+        ? mulDiv([result.fillValue], [result.filledQty])
+        : 0n;
 
     return {
-      success: true,
       orderId,
+      symbol: input.symbol,
+      type: input.type,
+      side: input.side,
+      qty: input.qty,
+      price: input.price.toString(),
+      slippage: input.slippage.toString(),
+      leverage: input.leverage,
+      isReduceOnly: input.isReduceOnly,
       filledQty: result.filledQty,
       unfilled: result.unfilled,
-      avgFillPrice,
-    };
-  }
-
-  private updateMakerOrders(makerFills: MakerFillEvent[]): void {
-    for (const mf of makerFills) {
-      const record = this.orders.find((o) => o.orderId === mf.orderId);
-      if (!record) continue;
-
-      record.fills.push({
-        fillId: uuid(),
+      avgFillPrice: avgFillPrice.toString(),
+      status,
+      fills: result.makerFills.map((mf) => ({
+        makerOrderId: mf.orderId,
+        makerUserId: mf.makerUserId,
+        price: mf.fillPrice.toString(),
         qty: mf.fillQty,
-        price: mf.fillPrice,
-        fee: mf.fee,
-        role: "maker",
-        timestamp: mf.timestamp,
-      });
-      record.filledQty += mf.fillQty;
-      record.remainingQty = Math.max(0, record.remainingQty - mf.fillQty);
-      record.avgFillPrice =
-        record.fills.reduce((s, f) => s + f.price * f.qty, 0) /
-        record.filledQty;
-      record.status =
-        record.remainingQty < 1e-10 ? "filled" : "partially_filled";
-    }
+      })),
+    };
   }
 }

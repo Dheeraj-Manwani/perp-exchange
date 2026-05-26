@@ -24,7 +24,11 @@ export const signUp = async (data: AuthInput) => {
 
   await Promise.all([
     createBalanceAccount(user.id),
-    sendToEngine("create_user", { userId: user.id, username: user.username }),
+    sendToEngine(
+      "create_user",
+      { userId: user.id, username: user.username },
+      user.id,
+    ),
   ]);
 
   const accessToken = getAccessToken(user);
