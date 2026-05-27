@@ -6,6 +6,7 @@ import {
   fetchLastState,
 } from "../utils/startup";
 import { OrderbookRegistry } from "./OrderbookRegistry";
+import { PositionManager } from "./PositionManager";
 import { UserRegistry } from "./UserRegistry";
 
 export class Exchange {
@@ -13,6 +14,7 @@ export class Exchange {
 
   readonly users: UserRegistry;
   readonly orderbooks: OrderbookRegistry;
+  readonly positions: PositionManager;
 
   readonly accountService: AccountService;
   readonly orderService: OrderService;
@@ -21,8 +23,13 @@ export class Exchange {
     // TODO: better crash recovery
     this.users = new UserRegistry(existingUsers);
     this.orderbooks = new OrderbookRegistry(existingMarkets);
+    this.positions = new PositionManager();
 
     this.accountService = new AccountService(this.users);
-    this.orderService = new OrderService(this.users, this.orderbooks);
+    this.orderService = new OrderService(
+      this.users,
+      this.orderbooks,
+      this.positions,
+    );
   }
 }

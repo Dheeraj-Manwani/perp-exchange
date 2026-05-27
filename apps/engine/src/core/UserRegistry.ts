@@ -11,6 +11,7 @@ export class UserRegistry {
   }
 
   add(account: Account): void {
+    if (this.byId.has(account.userId)) return;
     this.byId.set(account.userId, account);
   }
 

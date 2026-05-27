@@ -21,6 +21,14 @@ export class PriceLevel {
     this.queue.push(order);
   }
 
+  cancelOrder(orderId: string): { remainingQty: number; leverage: number } | null {
+    const idx = this.queue.findIndex((o) => o.orderId === orderId);
+    if (idx === -1) return null;
+    const [order] = this.queue.splice(idx, 1);
+    if (!order) return null;
+    return { remainingQty: order.qty - order.filledQty, leverage: order.leverage };
+  }
+
   consume(qty: number, skipUserId?: string): ConsumedFill[] {
     const fills: ConsumedFill[] = [];
 
@@ -38,7 +46,7 @@ export class PriceLevel {
       remainingQty -= fillQty;
 
       fills.push({
-        makerOrderId: order.userId,
+        makerOrderId: order.orderId,
         makerUserId: order.userId,
         makerLeverage: order.leverage,
         qty: fillQty,

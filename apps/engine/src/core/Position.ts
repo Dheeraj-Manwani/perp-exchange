@@ -63,11 +63,10 @@ export class Position {
   }
 
   reduceBy(qty: number): { closedMargin: bigint } {
-    const proportion = qty / this.qty;
-    const closedMargin = mulDiv([this.margin, proportion]);
+    const closedMargin = mulDiv([this.margin, qty], [this.qty]);
     this.qty -= qty;
     this.margin -= closedMargin;
-    if (this.qty < 1e-10) this.close();
+    if (this.qty === 0) this.close();
     return { closedMargin };
   }
 

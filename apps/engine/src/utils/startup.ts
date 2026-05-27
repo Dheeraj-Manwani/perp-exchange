@@ -12,13 +12,7 @@ export const fetchLastState = async () => {
         username: true,
         balances: {
           select: { asset: true, availableBalance: true, lockedBalance: true },
-        },
-      },
-      where: {
-        balances: {
-          every: {
-            asset: "USD",
-          },
+          where: { asset: "USD" },
         },
       },
     }),
@@ -33,12 +27,15 @@ export const fetchLastState = async () => {
     }),
   ]);
 
-  existingUsers = dbUsers.map((us) => ({
-    userId: us.id,
-    username: us.username,
-    available: us.balances[0]?.availableBalance,
-    locked: us.balances[0]?.lockedBalance,
-  }));
+  existingUsers = dbUsers.map((us) => {
+    const usd = us.balances[0];
+    return {
+      userId: us.id,
+      username: us.username,
+      available: usd ? BigInt(usd.availableBalance) : undefined,
+      locked: usd ? BigInt(usd.lockedBalance) : undefined,
+    };
+  });
 
   existingMarkets = dbMarkets.map((m) => m.symbol);
 };

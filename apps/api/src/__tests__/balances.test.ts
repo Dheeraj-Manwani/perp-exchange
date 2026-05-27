@@ -63,7 +63,9 @@ describe("POST /onramp", () => {
 
   describe("input validation", () => {
     it("returns 400 when amount is missing from the body", async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(buildMockUser() as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(
+        buildMockUser() as any,
+      );
       const token = generateAccessToken();
 
       const res = await request(app)
@@ -72,11 +74,16 @@ describe("POST /onramp", () => {
         .send({});
 
       expect(res.status).toBe(400);
-      expect(res.body).toMatchObject({ success: false, code: "VALIDATION_ERROR" });
+      expect(res.body).toMatchObject({
+        success: false,
+        code: "VALIDATION_ERROR",
+      });
     });
 
     it("returns 400 when amount is zero or negative", async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(buildMockUser() as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(
+        buildMockUser() as any,
+      );
       const token = generateAccessToken();
 
       const res = await request(app)
@@ -85,11 +92,16 @@ describe("POST /onramp", () => {
         .send({ amount: -100 });
 
       expect(res.status).toBe(400);
-      expect(res.body).toMatchObject({ success: false, code: "VALIDATION_ERROR" });
+      expect(res.body).toMatchObject({
+        success: false,
+        code: "VALIDATION_ERROR",
+      });
     });
 
     it("returns 400 when amount is a non-numeric string", async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(buildMockUser() as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(
+        buildMockUser() as any,
+      );
       const token = generateAccessToken();
 
       const res = await request(app)
@@ -98,7 +110,10 @@ describe("POST /onramp", () => {
         .send({ amount: "not-a-number" });
 
       expect(res.status).toBe(400);
-      expect(res.body).toMatchObject({ success: false, code: "VALIDATION_ERROR" });
+      expect(res.body).toMatchObject({
+        success: false,
+        code: "VALIDATION_ERROR",
+      });
     });
   });
 
@@ -106,8 +121,16 @@ describe("POST /onramp", () => {
 
   describe("happy path", () => {
     it("returns 200 and forwards the engine response when a valid integer amount is deposited", async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(buildMockUser() as any);
-      vi.mocked(sendToEngine).mockResolvedValue({ correlationId: "cid-1", ok: true, data: undefined });
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(
+        buildMockUser() as any,
+      );
+      vi.mocked(sendToEngine).mockResolvedValue({
+        correlationId: "cid-1",
+        userId: "test-user-id",
+        type: "onramp" as const,
+        ok: true,
+        data: undefined,
+      });
       const token = generateAccessToken();
 
       const res = await request(app)
@@ -120,12 +143,21 @@ describe("POST /onramp", () => {
       expect(vi.mocked(sendToEngine)).toHaveBeenCalledWith(
         "onramp",
         expect.objectContaining({ userId: expect.any(String), amount: "1000" }),
+        expect.any(String),
       );
     });
 
     it("accepts amount sent as a numeric string", async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(buildMockUser() as any);
-      vi.mocked(sendToEngine).mockResolvedValue({ correlationId: "cid-2", ok: true, data: undefined });
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(
+        buildMockUser() as any,
+      );
+      vi.mocked(sendToEngine).mockResolvedValue({
+        correlationId: "cid-2",
+        userId: "test-user-id",
+        type: "onramp" as const,
+        ok: true,
+        data: undefined,
+      });
       const token = generateAccessToken();
 
       const res = await request(app)
@@ -138,9 +170,13 @@ describe("POST /onramp", () => {
     });
 
     it("returns 200 and passes through engine error payload when engine reports failure", async () => {
-      vi.mocked(prisma.user.findUnique).mockResolvedValue(buildMockUser() as any);
+      vi.mocked(prisma.user.findUnique).mockResolvedValue(
+        buildMockUser() as any,
+      );
       vi.mocked(sendToEngine).mockResolvedValue({
         correlationId: "cid-3",
+        userId: "test-user-id",
+        type: "onramp" as const,
         ok: false,
         error: "account_not_found",
       });

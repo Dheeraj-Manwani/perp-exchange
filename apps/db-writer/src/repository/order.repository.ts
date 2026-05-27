@@ -1,8 +1,47 @@
 import { prisma, OrderStatus } from "@repo/db";
-import { CreateOrderEngineResponse } from "@repo/schema";
+import {
+  CreateOrderEngineResponse,
+  TAKER_FEE_RATE,
+  MAKER_FEE_RATE,
+} from "@repo/schema";
 import { getMarketBySymbol } from "./market.repository";
 
-export const createOrder = async (input: CreateOrderEngineResponse, userId: string) => {
+export const cancelOrder = async (
+  orderId: string,
+  userId: string,
+  releasedMargin: string,
+) => {
+  return await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: orderId },
+      data: { status: "CANCELLED" as OrderStatus },
+    });
+
+    if (releasedMargin !== "0") {
+      const balance = await tx.balance.findFirst({
+        where: { userId, asset: "USD" },
+        select: { availableBalance: true, lockedBalance: true },
+      });
+      if (balance) {
+        const released = BigInt(releasedMargin);
+        const newAvailable = BigInt(balance.availableBalance) + released;
+        const newLocked = BigInt(balance.lockedBalance) - released;
+        await tx.balance.updateMany({
+          where: { userId, asset: "USD" },
+          data: {
+            availableBalance: newAvailable.toString(),
+            lockedBalance: (newLocked < 0n ? 0n : newLocked).toString(),
+          },
+        });
+      }
+    }
+  });
+};
+
+export const createOrder = async (
+  input: CreateOrderEngineResponse,
+  userId: string,
+) => {
   const market = await getMarketBySymbol(input.symbol);
   if (!market) throw new Error("Invalid market");
 
@@ -14,16 +53,16 @@ export const createOrder = async (input: CreateOrderEngineResponse, userId: stri
         marketId: market.id,
         type: input.type,
         side: input.side,
-        price: BigInt(input.price),
-        qty: BigInt(Math.round(input.qty)),
+        price: input.price,
+        qty: String(input.qty),
         slippage: parseInt(input.slippage),
         leverage: input.leverage,
         reduceOnly: input.isReduceOnly,
-        filledQty: BigInt(Math.round(input.filledQty)),
+        filledQty: String(input.filledQty),
         status: input.status as OrderStatus,
       },
       update: {
-        filledQty: BigInt(Math.round(input.filledQty)),
+        filledQty: String(input.filledQty),
         status: input.status as OrderStatus,
       },
       where: { id: input.orderId },
@@ -37,9 +76,50 @@ export const createOrder = async (input: CreateOrderEngineResponse, userId: stri
           takerUserId: userId,
           makerUserId: f.makerUserId,
           marketId: market.id,
-          price: BigInt(f.price),
-          qty: BigInt(Math.round(f.qty)),
+          price: f.price,
+          qty: String(f.qty),
         })),
+      });
+
+      const takerFee = String(
+        Math.round(
+          Number(input.avgFillPrice) * input.filledQty * TAKER_FEE_RATE,
+        ),
+      );
+
+      const makerFees = input.fills.map((f) => ({
+        userId: f.makerUserId,
+        fee: String(Math.round(Number(f.price) * f.qty * MAKER_FEE_RATE)),
+      }));
+
+      const uniqueUserIds = [
+        ...new Set([userId, ...makerFees.map((m) => m.userId)]),
+      ];
+      const balanceRows = await tx.balance.findMany({
+        where: { userId: { in: uniqueUserIds }, asset: "USD" },
+        select: { userId: true, availableBalance: true },
+      });
+      const balanceMap = new Map(
+        balanceRows.map((b) => [b.userId, b.availableBalance]),
+      );
+
+      await tx.transaction.createMany({
+        data: [
+          {
+            userId,
+            type: "TRADE_FEE" as const,
+            asset: "USD",
+            amount: takerFee,
+            balanceAfter: balanceMap.get(userId) ?? "0",
+          },
+          ...makerFees.map((m) => ({
+            userId: m.userId,
+            type: "TRADE_FEE" as const,
+            asset: "USD",
+            amount: m.fee,
+            balanceAfter: balanceMap.get(m.userId) ?? "0",
+          })),
+        ],
       });
     }
 

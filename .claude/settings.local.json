@@ -24,7 +24,8 @@
       "Bash(bun --cwd apps/db-writer run tsc --noEmit)",
       "Bash(bun --cwd packages/schema run build)",
       "Bash(bun --cwd apps/engine run build)",
-      "Bash(bun --cwd apps/db-writer run build)"
+      "Bash(bun --cwd apps/db-writer run build)",
+      "Bash(bunx tsc *)"
     ]
   }
 }

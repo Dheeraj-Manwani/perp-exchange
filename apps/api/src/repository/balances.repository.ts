@@ -10,8 +10,8 @@ export const createBalanceAccount = async (
     data: {
       userId,
       asset,
-      availableBalance: available,
-      lockedBalance: locked,
+      availableBalance: available.toString(),
+      lockedBalance: locked.toString(),
     },
   });
 };

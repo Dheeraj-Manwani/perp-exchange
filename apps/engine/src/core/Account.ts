@@ -49,7 +49,7 @@ export class Account {
   }
 
   deposit(amount: bigint): void {
-    if (amount <= 0) throw new Error("Deposit amount should be positive");
+    if (amount <= 0n) throw new Error("Deposit amount should be positive");
     this._available += amount;
 
     console.log("final === ", this._available);

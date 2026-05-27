@@ -11,7 +11,9 @@ export class PositionManager {
 
   add(position: Position) {
     const existing = this.positions.get(position.userId) ?? [];
-    existing.push(position);
-    this.positions.set(position.userId, existing);
+    // removing closed positions
+    const open = existing.filter((p) => p.isOpen);
+    open.push(position);
+    this.positions.set(position.userId, open);
   }
 }

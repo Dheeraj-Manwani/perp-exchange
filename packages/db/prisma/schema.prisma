@@ -53,11 +53,11 @@ model Order {
   side   Side
   status OrderStatus @default(PENDING)
 
-  price    BigInt
-  qty      BigInt
+  price    String
+  qty      String
   slippage Int?
 
-  filledQty  BigInt  @default(0)
+  filledQty  String  @default("0")
   leverage   Int     @default(1)
   reduceOnly Boolean @default(false)
 
@@ -82,8 +82,8 @@ model Fill {
   makerUserId  String @db.Uuid
   marketId     String @db.Uuid
 
-  price BigInt
-  qty   BigInt
+  price String
+  qty   String
 
   createdAt DateTime @default(now()) @db.Timestamptz()
 
@@ -104,13 +104,13 @@ model Position {
   id String @id @default(uuid()) @db.Uuid
 
   side             Side
-  size             BigInt
-  entryPrice       BigInt
+  size             String
+  entryPrice       String
   leverage         Int
-  margin           BigInt
-  unrealisedPnl    BigInt @default(0)
-  realisedPnl      BigInt @default(0)
-  liquidationPrice BigInt
+  margin           String
+  unrealisedPnl    String @default("0")
+  realisedPnl      String @default("0")
+  liquidationPrice String
 
   createdAt DateTime @default(now()) @db.Timestamptz()
   updatedAt DateTime @updatedAt @db.Timestamptz()
@@ -131,8 +131,8 @@ model Balance {
   userId String @db.Uuid
   asset  String
 
-  availableBalance BigInt
-  lockedBalance    BigInt
+  availableBalance String
+  lockedBalance    String
 
   createdAt DateTime @default(now()) @db.Timestamptz()
   updatedAt DateTime @updatedAt @db.Timestamptz()
@@ -149,8 +149,8 @@ model Transaction {
   type  TransactionType
   asset String
 
-  amount       BigInt
-  balanceAfter BigInt
+  amount       String
+  balanceAfter String
 
   createdAt DateTime @default(now()) @db.Timestamptz()
 

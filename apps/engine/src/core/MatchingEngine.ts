@@ -1,11 +1,12 @@
 import {
   Fill,
-  MAKER_FEE_RATE,
+  FEE_DENOMINATOR,
+  MAKER_FEE_NUMERATOR,
   MakerFillEvent,
   MatchParams,
   OrderFill,
   OrderSide,
-  TAKER_FEE_RATE,
+  TAKER_FEE_NUMERATOR,
 } from "@repo/schema";
 import { PositionManager } from "./PositionManager";
 import { UserRegistry } from "./UserRegistry";
@@ -83,7 +84,10 @@ export class MatchingEngine {
             fillId: uuid(),
             price: fillPrice,
             qty: fillQty,
-            fee: mulDiv([fillPrice, fillQty, TAKER_FEE_RATE]),
+            fee: mulDiv(
+              [fillPrice, fillQty, TAKER_FEE_NUMERATOR],
+              [FEE_DENOMINATOR],
+            ),
             role: "taker",
             timestamp: fillTimestamp,
           });
@@ -106,7 +110,10 @@ export class MatchingEngine {
             makerAccount,
           });
 
-          const makerFee = mulDiv([fillPrice, fillQty, MAKER_FEE_RATE]);
+          const makerFee = mulDiv(
+            [fillPrice, fillQty, MAKER_FEE_NUMERATOR],
+            [FEE_DENOMINATOR],
+          );
           makerFills.push({
             orderId: cf.makerOrderId,
             makerUserId: cf.makerUserId,
@@ -170,7 +177,10 @@ export class MatchingEngine {
     if (!existing || existing.side === side) {
       // consuming full margin for same side existing / new orders
       const fillMargin = mulDiv([fillPrice, fillQty], [leverage], "UP");
-      const takerFee = mulDiv([fillPrice, fillQty, TAKER_FEE_RATE]);
+      const takerFee = mulDiv(
+        [fillPrice, fillQty, TAKER_FEE_NUMERATOR],
+        [FEE_DENOMINATOR],
+      );
 
       taker.consumeLockedMargin(fillMargin);
       taker.debitAvailable(takerFee);
@@ -200,13 +210,11 @@ export class MatchingEngine {
     const closeQty = Math.min(fillQty, existing.qty);
     const openQty = fillQty - closeQty;
 
-    // const closingFillMargin = mulDiv([closeQty, fillPrice], [leverage]);
-    // taker.creditAvailable(closingFillMargin);
-
-    const realizedPnl =
+    const priceDelta =
       existing.side === "LONG"
-        ? mulDiv([fillPrice - existing.averagePrice, closeQty])
-        : mulDiv([existing.averagePrice - fillPrice, closeQty]);
+        ? fillPrice - existing.averagePrice
+        : existing.averagePrice - fillPrice;
+    const realizedPnl = mulDiv([priceDelta, closeQty]);
 
     const { closedMargin } = existing.reduceBy(closeQty);
     const proceeds = closedMargin + realizedPnl;
@@ -215,9 +223,12 @@ export class MatchingEngine {
     }
 
     // Flip: if the fill exceeds the existing position, open a new one in the new direction.
-    if (openQty > 1e-10) {
+    if (openQty > 0) {
       const openFillMargin = mulDiv([openQty, fillPrice], [leverage], "UP");
-      const openTakerFee = mulDiv([openQty, fillPrice, TAKER_FEE_RATE]);
+      const openTakerFee = mulDiv(
+        [openQty, fillPrice, TAKER_FEE_NUMERATOR],
+        [FEE_DENOMINATOR],
+      );
 
       taker.consumeLockedMargin(openFillMargin);
       taker.debitAvailable(openTakerFee);
@@ -267,7 +278,7 @@ export class MatchingEngine {
     } = params;
 
     const fillMargin = mulDiv([fillPrice, fillQty], [leverage], "UP");
-    const fee = mulDiv([fillPrice, fillQty, TAKER_FEE_RATE]);
+    const fee = mulDiv([fillPrice, fillQty, MAKER_FEE_NUMERATOR], [FEE_DENOMINATOR]);
 
     makerAccount.consumeLockedMargin(fillMargin);
     makerAccount.debitAvailable(fee);

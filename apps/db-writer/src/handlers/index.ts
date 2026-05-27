@@ -4,9 +4,10 @@ import {
   EngineResponse,
   onRampPayload,
   createOrderEngineResponseSchema,
+  cancelOrderEngineResponseSchema,
 } from "@repo/schema";
 import { updateAmountForUser } from "../repository/user.repository";
-import { createOrder } from "../repository/order.repository";
+import { cancelOrder, createOrder } from "../repository/order.repository";
 
 export const handleBackendToEngine = async (data: EngineRequest) => {
   // switch (data.type) {
@@ -42,6 +43,11 @@ export const handleEngineToBackend = async (res: EngineResponse) => {
       const parsedData = createOrderEngineResponseSchema.parse(res.data);
       logger.info({ userId: res.userId }, "saving new order");
       return await createOrder(parsedData, res.userId);
+    }
+    case "cancel_order": {
+      const { orderId, releasedMargin } = cancelOrderEngineResponseSchema.parse(res.data);
+      logger.info({ userId: res.userId, orderId }, "cancelling order");
+      return await cancelOrder(orderId, res.userId, releasedMargin);
     }
   }
 };
