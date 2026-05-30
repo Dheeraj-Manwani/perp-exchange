@@ -5,7 +5,8 @@
   "main": "./src/index.ts",
   "scripts": {
     "build": "tsc",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "db:seed-markets": "tsx scripts/seed-markets.ts"
   },
   "exports": {
     ".": "./src/index.ts"
@@ -25,6 +26,7 @@
     "@repo/typescript-config": "workspace:*",
     "@types/dotenv": "^8.2.3",
     "prisma": "^7.8.0",
+    "tsx": "^4.19.4",
     "typescript": "^5.9.2"
   }
 }

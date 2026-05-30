@@ -1,5 +1,5 @@
 {
-  "name": "@repo/engine",
+  "name": "@repo/market-data",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -7,9 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "lint": "eslint src/",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "lint": "eslint src/"
   },
   "dependencies": {
     "@repo/db": "workspace:*",
@@ -20,11 +18,11 @@
     "redis": "^5.12.1",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
-    "uuid": "^14.0.0"
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "vitest": "^3.2.0"
+    "@types/ws": "^8.18.1"
   },
   "keywords": [],
   "author": "",

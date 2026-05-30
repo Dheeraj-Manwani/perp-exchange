@@ -59,6 +59,10 @@ export const createOrderEngineResponseSchema = z.object({
   avgFillPrice: z.string(),
   status: orderStatusSchema,
   fills: z.array(fillRecordSchema),
+  takerBalanceSnapshot: z.object({
+    available: z.string(),
+    locked: z.string(),
+  }),
 });
 
 export type CreateOrderEngineResponse = z.infer<

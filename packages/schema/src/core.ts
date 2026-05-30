@@ -54,6 +54,7 @@ export type MatchResult = {
   fillValue: bigint;
   takerFills: OrderFill[];
   makerFills: MakerFillEvent[];
+  takerMarginConsumed: bigint;
 };
 
 export type ConsumedFill = {

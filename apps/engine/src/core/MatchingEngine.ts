@@ -42,6 +42,7 @@ export class MatchingEngine {
     let remaining = qty;
     let filledQty = 0;
     let fillValue = 0n;
+    let takerMarginConsumed = 0n;
 
     const levels = orderbook.levelsToMatch(side);
 
@@ -67,7 +68,7 @@ export class MatchingEngine {
 
         // taker fills
         if (!isLiquidation) {
-          this.applyFillToTaker({
+          takerMarginConsumed += this.applyFillToTaker({
             userId,
             positionId,
             orderId,
@@ -137,6 +138,7 @@ export class MatchingEngine {
       fillValue,
       takerFills,
       makerFills,
+      takerMarginConsumed,
     };
   }
 
@@ -151,7 +153,7 @@ export class MatchingEngine {
     fillQty: number;
     taker: Account;
     isLimitOrder: boolean;
-  }): void {
+  }): bigint {
     const {
       userId,
       positionId,
@@ -203,7 +205,7 @@ export class MatchingEngine {
           }),
         );
       }
-      return;
+      return fillMargin;
     }
 
     // closing opposite positions and opening new
@@ -253,7 +255,10 @@ export class MatchingEngine {
           fills: [openFill],
         }),
       );
+      return openFillMargin;
     }
+
+    return 0n;
   }
 
   private applyFillToMaker(params: {
@@ -278,7 +283,10 @@ export class MatchingEngine {
     } = params;
 
     const fillMargin = mulDiv([fillPrice, fillQty], [leverage], "UP");
-    const fee = mulDiv([fillPrice, fillQty, MAKER_FEE_NUMERATOR], [FEE_DENOMINATOR]);
+    const fee = mulDiv(
+      [fillPrice, fillQty, MAKER_FEE_NUMERATOR],
+      [FEE_DENOMINATOR],
+    );
 
     makerAccount.consumeLockedMargin(fillMargin);
     makerAccount.debitAvailable(fee);

@@ -68,6 +68,14 @@ export const createOrder = async (
       where: { id: input.orderId },
     });
 
+    await tx.balance.updateMany({
+      where: { userId, asset: "USD" },
+      data: {
+        availableBalance: input.takerBalanceSnapshot.available,
+        lockedBalance: input.takerBalanceSnapshot.locked,
+      },
+    });
+
     if (input.fills.length > 0) {
       await tx.fill.createMany({
         data: input.fills.map((f) => ({

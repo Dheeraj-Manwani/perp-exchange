@@ -88,13 +88,13 @@ export class OrderService {
       account,
     );
 
-    // releasing balance for unfilled
-    if (result.unfilled > 0 && input.qty > 0) {
-      const unfilledMargin = mulDiv(
-        [estimatedMargin, result.unfilled],
-        [input.qty],
-      );
-      account.unlockMargin(unfilledMargin);
+    // releasing balance for unfilled + difference
+    const release =
+      estimatedMargin > result.takerMarginConsumed
+        ? estimatedMargin - result.takerMarginConsumed
+        : 0n;
+    if (release > 0n) {
+      account.unlockMargin(release);
     }
 
     const status =
@@ -109,6 +109,7 @@ export class OrderService {
         ? mulDiv([result.fillValue], [result.filledQty])
         : 0n;
 
+    const { available: mAvail, locked: mLocked } = account.collateral;
     return {
       orderId,
       symbol: input.symbol,
@@ -129,6 +130,10 @@ export class OrderService {
         price: mf.fillPrice.toString(),
         qty: mf.fillQty,
       })),
+      takerBalanceSnapshot: {
+        available: mAvail.toString(),
+        locked: mLocked.toString(),
+      },
     };
   }
 
@@ -205,6 +210,7 @@ export class OrderService {
         ? mulDiv([result.fillValue], [result.filledQty])
         : 0n;
 
+    const { available: lAvail, locked: lLocked } = account.collateral;
     return {
       orderId,
       symbol: input.symbol,
@@ -225,6 +231,10 @@ export class OrderService {
         price: mf.fillPrice.toString(),
         qty: mf.fillQty,
       })),
+      takerBalanceSnapshot: {
+        available: lAvail.toString(),
+        locked: lLocked.toString(),
+      },
     };
   }
 

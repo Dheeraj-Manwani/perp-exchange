@@ -2,7 +2,8 @@ export type EngineCommandType =
   | "create_order"
   | "cancel_order"
   | "onramp"
-  | "create_user";
+  | "create_user"
+  | "index_price_update";
 
 export interface EngineRequest {
   userId: string;
