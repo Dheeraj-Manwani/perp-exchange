@@ -1,10 +1,15 @@
-import { ConsumedFill, OpenOrder, OrderSide } from "@repo/schema";
+import {
+  CancelledOrder,
+  ConsumedFill,
+  OpenOrder,
+  OrderSide,
+} from "@repo/schema";
 import { PriceLevel } from "./PriceLevel";
 
 export class Orderbook {
   readonly asset: string;
   lastTradedPrice: bigint = 0n;
-  indexPrice: number = 0;
+  indexPrice: bigint = 0n;
 
   asks: Map<string, PriceLevel> = new Map();
   bids: Map<string, PriceLevel> = new Map();
@@ -64,5 +69,43 @@ export class Orderbook {
       map.set(key, level);
     }
     level.addOrder(order);
+  }
+
+  cancelUserOrders(userId: string): CancelledOrder[] {
+    const cancelled: CancelledOrder[] = [];
+
+    const emptyBidKeys: string[] = [];
+    for (const [priceStr, level] of this.bids) {
+      const removed = level.removeUserOrders(userId);
+      for (const o of removed) {
+        cancelled.push({
+          orderId: o.orderId,
+          userId: o.userId,
+          unfilledQty: o.qty - o.filledQty,
+          price: BigInt(priceStr),
+          leverage: o.leverage,
+        });
+      }
+      if (level.isEmpty()) emptyBidKeys.push(priceStr);
+    }
+    for (const key of emptyBidKeys) this.bids.delete(key);
+
+    const emptyAskKeys: string[] = [];
+    for (const [priceStr, level] of this.asks) {
+      const removed = level.removeUserOrders(userId);
+      for (const o of removed) {
+        cancelled.push({
+          orderId: o.orderId,
+          userId: o.userId,
+          unfilledQty: o.qty - o.filledQty,
+          price: BigInt(priceStr),
+          leverage: o.leverage,
+        });
+      }
+      if (level.isEmpty()) emptyAskKeys.push(priceStr);
+    }
+    for (const key of emptyAskKeys) this.asks.delete(key);
+
+    return cancelled;
   }
 }

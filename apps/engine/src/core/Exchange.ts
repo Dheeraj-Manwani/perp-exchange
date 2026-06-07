@@ -5,6 +5,8 @@ import {
   existingUsers,
   fetchLastState,
 } from "../utils/startup";
+import { InsuranceFund } from "./InsuranceFund";
+import { LiquidationEngine } from "./LiquidationEngine";
 import { OrderbookRegistry } from "./OrderbookRegistry";
 import { PositionManager } from "./PositionManager";
 import { UserRegistry } from "./UserRegistry";
@@ -19,6 +21,9 @@ export class Exchange {
   readonly accountService: AccountService;
   readonly orderService: OrderService;
 
+  readonly insurance: InsuranceFund;
+  readonly liquidation: LiquidationEngine;
+
   constructor() {
     // TODO: better crash recovery
     this.users = new UserRegistry(existingUsers);
@@ -30,6 +35,14 @@ export class Exchange {
       this.users,
       this.orderbooks,
       this.positions,
+    );
+
+    this.insurance = new InsuranceFund();
+    this.liquidation = new LiquidationEngine(
+      this.users,
+      this.positions,
+      this.orderbooks,
+      this.insurance,
     );
   }
 }

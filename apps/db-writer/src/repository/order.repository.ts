@@ -1,6 +1,7 @@
 import { prisma, OrderStatus } from "@repo/db";
 import {
   CreateOrderEngineResponse,
+  IndexPriceUpdateEngineResponse,
   TAKER_FEE_RATE,
   MAKER_FEE_RATE,
 } from "@repo/schema";
@@ -132,5 +133,79 @@ export const createOrder = async (
     }
 
     return order;
+  });
+};
+
+export const processLiquidations = async (
+  data: IndexPriceUpdateEngineResponse,
+) => {
+  const { cancelledOrders, liquidations, balanceSnapshots } = data;
+  if (cancelledOrders.length === 0 && liquidations.length === 0) return;
+
+  await prisma.$transaction(async (tx) => {
+    if (cancelledOrders.length > 0) {
+      await tx.order.updateMany({
+        where: { id: { in: cancelledOrders.map((o) => o.orderId) } },
+        data: { status: "LIQUIDATED" },
+      });
+    }
+
+    for (const liq of liquidations) {
+      if (liq.filledQty === 0) continue;
+
+      const market = await getMarketBySymbol(liq.market);
+      if (!market) continue;
+
+      await tx.order.create({
+        data: {
+          id: liq.liquidationOrderId,
+          userId: liq.userId,
+          marketId: market.id,
+          type: "MARKET",
+          side: liq.side,
+          status: "LIQUIDATED",
+          price: liq.avgFillPrice,
+          qty: String(liq.qty),
+          filledQty: String(liq.filledQty),
+          leverage: liq.leverage,
+          reduceOnly: true,
+        },
+      });
+
+      if (liq.fills.length > 0) {
+        await tx.fill.createMany({
+          data: liq.fills.map((f) => ({
+            takerOrderId: liq.liquidationOrderId,
+            makerOrderId: f.makerOrderId,
+            takerUserId: liq.userId,
+            makerUserId: f.makerUserId,
+            marketId: market.id,
+            price: f.price,
+            qty: String(f.qty),
+          })),
+        });
+      }
+
+      const snapshot = balanceSnapshots.find((s) => s.userId === liq.userId);
+      await tx.transaction.create({
+        data: {
+          userId: liq.userId,
+          type: "LIQUIDATION",
+          asset: "USD",
+          amount: liq.avgFillPrice,
+          balanceAfter: snapshot?.available ?? "0",
+        },
+      });
+    }
+
+    for (const snap of balanceSnapshots) {
+      await tx.balance.updateMany({
+        where: { userId: snap.userId, asset: "USD" },
+        data: {
+          availableBalance: snap.available,
+          lockedBalance: snap.locked,
+        },
+      });
+    }
   });
 };

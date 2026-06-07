@@ -21,12 +21,31 @@ export class PriceLevel {
     this.queue.push(order);
   }
 
-  cancelOrder(orderId: string): { remainingQty: number; leverage: number } | null {
+  cancelOrder(
+    orderId: string,
+  ): { remainingQty: number; leverage: number } | null {
     const idx = this.queue.findIndex((o) => o.orderId === orderId);
     if (idx === -1) return null;
     const [order] = this.queue.splice(idx, 1);
     if (!order) return null;
-    return { remainingQty: order.qty - order.filledQty, leverage: order.leverage };
+    return {
+      remainingQty: order.qty - order.filledQty,
+      leverage: order.leverage,
+    };
+  }
+
+  removeUserOrders(userId: string): OpenOrder[] {
+    const removed: OpenOrder[] = [];
+
+    this.queue = this.queue.filter((order) => {
+      if (order.userId === userId) {
+        removed.push(order);
+        return false;
+      }
+      return true;
+    });
+
+    return removed;
   }
 
   consume(qty: number, skipUserId?: string): ConsumedFill[] {

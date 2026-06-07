@@ -1,5 +1,4 @@
 import {
-  Fill,
   OrderSide,
   PLATFORM_RISK_DENOMINATOR,
   PLATFORM_RISK_NUMERATOR,
@@ -21,15 +20,4 @@ export function getLiquidationPrice(
     [PLATFORM_RISK_DENOMINATOR],
   );
   return side === "LONG" ? entryPrice - delta : entryPrice + delta;
-}
-
-export function computeWeightedAveragePrice(fills: Fill[]): bigint {
-  let totalValue = 0n;
-  let totalQty = 0;
-  for (const f of fills) {
-    totalValue += mulDiv([f.price, f.qty]);
-    totalQty += f.qty;
-  }
-  if (totalQty === 0) return 0n;
-  return mulDiv([totalValue], [totalQty]);
 }

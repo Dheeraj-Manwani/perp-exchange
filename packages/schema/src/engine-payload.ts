@@ -21,3 +21,9 @@ export const cancelOrderPayload = z.object({
 });
 
 export type CancelOrderPayload = z.infer<typeof cancelOrderPayload>;
+
+export const indexPriceChangePayload = z.object({
+  marketPrices: z.record(z.string(), z.string()),
+});
+
+export type IndexPriceChangePayload = z.infer<typeof indexPriceChangePayload>;

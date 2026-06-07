@@ -5,9 +5,14 @@ import {
   onRampPayload,
   createOrderEngineResponseSchema,
   cancelOrderEngineResponseSchema,
+  indexPriceUpdateEngineResponsesSchema,
 } from "@repo/schema";
 import { updateAmountForUser } from "../repository/user.repository";
-import { cancelOrder, createOrder } from "../repository/order.repository";
+import {
+  cancelOrder,
+  createOrder,
+  processLiquidations,
+} from "../repository/order.repository";
 
 export const handleBackendToEngine = async (data: EngineRequest) => {
   // switch (data.type) {
@@ -48,6 +53,20 @@ export const handleEngineToBackend = async (res: EngineResponse) => {
       const { orderId, releasedMargin } = cancelOrderEngineResponseSchema.parse(res.data);
       logger.info({ userId: res.userId, orderId }, "cancelling order");
       return await cancelOrder(orderId, res.userId, releasedMargin);
+    }
+    case "index_price_update": {
+      const { markets } = indexPriceUpdateEngineResponsesSchema.parse(res.data);
+      for (const market of markets) {
+        await processLiquidations(market);
+      }
+      const liquidationCount = markets.reduce(
+        (n, m) => n + m.liquidations.length,
+        0,
+      );
+      if (liquidationCount > 0) {
+        logger.info({ liquidationCount }, "processed liquidations");
+      }
+      return;
     }
   }
 };

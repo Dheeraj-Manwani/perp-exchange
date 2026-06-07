@@ -1,6 +1,8 @@
 import {
   cancelOrderPayload,
   EngineRequest,
+  IndexPriceUpdateEngineResponse,
+  indexPriceChangePayload,
   onRampPayload,
   orderInputSchema,
   signupPayload,
@@ -31,8 +33,23 @@ export function handleEngineRequest(
       return exchange.orderService.placeOrder(message.userId, data);
     }
     case "cancel_order": {
-      const { orderId, symbol, side } = cancelOrderPayload.parse(message.payload);
-      return exchange.orderService.cancelOrder(message.userId, orderId, symbol, side);
+      const { orderId, symbol, side } = cancelOrderPayload.parse(
+        message.payload,
+      );
+      return exchange.orderService.cancelOrder(
+        message.userId,
+        orderId,
+        symbol,
+        side,
+      );
+    }
+    case "index_price_update": {
+      const { marketPrices } = indexPriceChangePayload.parse(message.payload);
+      const markets: IndexPriceUpdateEngineResponse[] = [];
+      for (const [market, price] of Object.entries(marketPrices)) {
+        markets.push(exchange.liquidation.onPriceUpdate(market, BigInt(price)));
+      }
+      return { markets } as unknown as Record<string, unknown>;
     }
     default:
       throw new Error(`Unknown command type: ${message.type}`);

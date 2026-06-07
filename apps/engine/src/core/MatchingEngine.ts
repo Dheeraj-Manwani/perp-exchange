@@ -23,7 +23,7 @@ export class MatchingEngine {
     private readonly positions: PositionManager,
   ) {}
 
-  match(params: MatchParams, orderbook: Orderbook, taker: Account) {
+  match(params: MatchParams, orderbook: Orderbook, taker?: Account) {
     const {
       orderId,
       positionId,
@@ -49,10 +49,12 @@ export class MatchingEngine {
     for (const [levelPrice, _level] of levels) {
       if (remaining === 0) break;
 
-      // checking if best price in book is acceptable
-      const crosses =
-        side === "LONG" ? levelPrice <= limitPrice : levelPrice >= limitPrice;
-      if (!crosses) break;
+      // checking if best price in book is acceptable - for non liquidation
+      if (!isLiquidation) {
+        const crosses =
+          side === "LONG" ? levelPrice <= limitPrice : levelPrice >= limitPrice;
+        if (!crosses) break;
+      }
 
       const consumed = orderbook.consumeAtLevel(
         side,
@@ -67,7 +69,7 @@ export class MatchingEngine {
         const fillTimestamp = Date.now();
 
         // taker fills
-        if (!isLiquidation) {
+        if (!isLiquidation && taker) {
           takerMarginConsumed += this.applyFillToTaker({
             userId,
             positionId,
@@ -201,7 +203,6 @@ export class MatchingEngine {
             margin: fillMargin,
             leverage,
             averagePrice: fillPrice,
-            fills: [fill],
           }),
         );
       }
@@ -218,7 +219,7 @@ export class MatchingEngine {
         : existing.averagePrice - fillPrice;
     const realizedPnl = mulDiv([priceDelta, closeQty]);
 
-    const { closedMargin } = existing.reduceBy(closeQty);
+    const { closedMargin } = existing.reduceBy(closeQty, fillPrice);
     const proceeds = closedMargin + realizedPnl;
     if (proceeds > 0) {
       taker.creditAvailable(proceeds);
@@ -235,12 +236,6 @@ export class MatchingEngine {
       taker.consumeLockedMargin(openFillMargin);
       taker.debitAvailable(openTakerFee);
 
-      const openFill: Fill = {
-        fillId: uuid(),
-        orderId,
-        price: fillPrice,
-        qty: openQty,
-      };
       this.positions.add(
         new Position({
           positionId: uuid(),
@@ -252,7 +247,6 @@ export class MatchingEngine {
           margin: openFillMargin,
           leverage,
           averagePrice: fillPrice,
-          fills: [openFill],
         }),
       );
       return openFillMargin;
@@ -313,7 +307,6 @@ export class MatchingEngine {
           margin: fillMargin,
           leverage,
           averagePrice: fillPrice,
-          fills: [fill],
         }),
       );
     }

@@ -27,7 +27,10 @@
       "Bash(bun --cwd apps/db-writer run build)",
       "Bash(bunx tsc *)",
       "Bash(bun install *)",
-      "Bash(Remove-Item *)"
+      "Bash(Remove-Item *)",
+      "PowerShell(New-Item *)",
+      "Bash(npx tsc *)",
+      "Bash(bun x *)"
     ]
   }
 }

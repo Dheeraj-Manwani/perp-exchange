@@ -20,6 +20,7 @@ export const fetchLastState = async () => {
       select: {
         id: true,
         symbol: true,
+        decimals: true,
       },
       where: {
         isActive: true,

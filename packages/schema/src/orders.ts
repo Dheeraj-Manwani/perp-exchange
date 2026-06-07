@@ -84,3 +84,62 @@ export const cancelOrderEngineResponseSchema = z.object({
 export type CancelOrderEngineResponse = z.infer<
   typeof cancelOrderEngineResponseSchema
 >;
+
+export type CancelledOrder = {
+  orderId: string;
+  userId: string;
+  unfilledQty: number;
+  price: bigint;
+  leverage: number;
+};
+
+export const liquidationFillRecordSchema = z.object({
+  makerOrderId: z.string(),
+  makerUserId: z.string(),
+  price: z.string(),
+  qty: z.number(),
+});
+
+export type LiquidationFillRecord = z.infer<typeof liquidationFillRecordSchema>;
+
+export const liquidationEventRecordSchema = z.object({
+  liquidationOrderId: z.string(),
+  positionId: z.string(),
+  userId: z.string(),
+  market: z.string(),
+  side: orderSideSchema,
+  qty: z.number(),
+  filledQty: z.number(),
+  avgFillPrice: z.string(),
+  leverage: z.number(),
+  fills: z.array(liquidationFillRecordSchema),
+  adlTriggered: z.boolean(),
+});
+
+export type LiquidationEventRecord = z.infer<typeof liquidationEventRecordSchema>;
+
+export const indexPriceUpdateEngineResponseSchema = z.object({
+  cancelledOrders: z.array(
+    z.object({
+      orderId: z.string(),
+      userId: z.string(),
+      releasedMargin: z.string(),
+    }),
+  ),
+  liquidations: z.array(liquidationEventRecordSchema),
+  balanceSnapshots: z.array(
+    z.object({
+      userId: z.string(),
+      available: z.string(),
+      locked: z.string(),
+    }),
+  ),
+});
+
+export type IndexPriceUpdateEngineResponse = z.infer<
+  typeof indexPriceUpdateEngineResponseSchema
+>;
+
+export const indexPriceUpdateEngineResponsesSchema = z.object({
+  markets: z.array(indexPriceUpdateEngineResponseSchema),
+});

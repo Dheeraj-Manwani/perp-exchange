@@ -1,5 +1,5 @@
 import { logger } from "@repo/logger";
-import { EngineCommandType } from "@repo/schema";
+import { EngineCommandType, IndexPriceChangePayload } from "@repo/schema";
 import { publisher } from "./redis-client";
 import { env } from "./env";
 
@@ -26,7 +26,9 @@ export async function pushToQueue(prices: Map<string, string>) {
 
   const data = {
     type: "index_price_update" as EngineCommandType,
-    payload: { marketPrices: Object.fromEntries(pricesToSend) },
+    payload: {
+      marketPrices: Object.fromEntries(pricesToSend),
+    } as IndexPriceChangePayload,
   };
 
   console.log("sending to queue ", data);
@@ -36,7 +38,13 @@ export async function pushToQueue(prices: Map<string, string>) {
       env.ENGINE_QUEUE,
       "*",
       { data: JSON.stringify(data) },
-      { TRIM: { strategy: "MAXLEN", strategyModifier: "~", threshold: 100 } },
+      {
+        TRIM: {
+          strategy: "MINID",
+          strategyModifier: "~",
+          threshold: Date.now() - 90 * 24 * 60 * 60 * 1000,
+        },
+      },
     )
     .catch((err) => logger.error({ err }, "Queue push failed"));
 }

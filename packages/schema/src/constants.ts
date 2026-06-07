@@ -11,6 +11,8 @@ export const FEE_DENOMINATOR = 10000n;
 export const PLATFORM_RISK_NUMERATOR = 8n;
 export const PLATFORM_RISK_DENOMINATOR = 10n;
 
+export const INSURANCE_FUND_SEED = 50_000n;
+
 export const SUPPORTED_EXCHANGES = {
   binance: "binance",
 };

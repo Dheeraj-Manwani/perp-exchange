@@ -1,4 +1,5 @@
 import { EngineRequest, GROUP_ENGINE } from "@repo/schema";
+import { v4 as uuid } from "uuid";
 import { brokerClient, connectRedis } from "./utils/redis-client";
 import { sendResponse } from "./utils/response";
 import { logger } from "@repo/logger";
@@ -21,22 +22,52 @@ import { fetchLastState } from "./utils/startup";
 
     for (const stream of streams) {
       for (const { id, message } of stream.messages) {
-        let request: EngineRequest;
-
+        let parsed: any;
         try {
-          const parsed = JSON.parse(message["data"]);
-          if (!parsed.type || !parsed.responseQueue || !parsed.correlationId) {
-            logger.error("invalid message — missing required fields");
+          parsed = JSON.parse(message["data"]);
+          if (!parsed.type) {
+            logger.error("invalid message — missing type");
             await brokerClient.xAck(env.ENGINE_QUEUE, GROUP_ENGINE, id);
             continue;
           }
-          request = parsed as EngineRequest;
-          logger.info(request.type);
         } catch {
           logger.error({ id }, "Skipping unparseable broker message");
           await brokerClient.xAck(env.ENGINE_QUEUE, GROUP_ENGINE, id);
           continue;
         }
+
+        // index_price_update is fire-and-forget from market-data (no responseQueue/correlationId)
+        if (parsed.type === "index_price_update" && !parsed.responseQueue) {
+          try {
+            const data = handleEngineRequest({
+              ...parsed,
+              userId: "system",
+              correlationId: uuid(),
+              responseQueue: env.RESPONSE_QUEUE,
+            } as EngineRequest);
+            logger.info("index_price_update");
+            await sendResponse(env.RESPONSE_QUEUE, {
+              userId: "system",
+              type: "index_price_update",
+              correlationId: uuid(),
+              ok: true,
+              data,
+            });
+          } catch (error) {
+            logger.error({ error }, "Error processing index_price_update");
+          }
+          await brokerClient.xAck(env.ENGINE_QUEUE, GROUP_ENGINE, id);
+          continue;
+        }
+
+        if (!parsed.responseQueue || !parsed.correlationId) {
+          logger.error("invalid message — missing required fields");
+          await brokerClient.xAck(env.ENGINE_QUEUE, GROUP_ENGINE, id);
+          continue;
+        }
+
+        const request = parsed as EngineRequest;
+        logger.info(request.type);
 
         try {
           const data = handleEngineRequest(request);
