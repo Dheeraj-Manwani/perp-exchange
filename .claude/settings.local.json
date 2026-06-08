@@ -30,7 +30,8 @@
       "Bash(Remove-Item *)",
       "PowerShell(New-Item *)",
       "Bash(npx tsc *)",
-      "Bash(bun x *)"
+      "Bash(bun x *)",
+      "Bash(git status *)"
     ]
   }
 }

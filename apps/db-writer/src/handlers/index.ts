@@ -42,23 +42,21 @@ export const handleEngineToBackend = async (res: EngineResponse) => {
       const { userId, amount } = onRampPayload.parse(res.data);
 
       logger.info({ userId, amount }, "Adding amount to db for user");
-      return await updateAmountForUser(userId, BigInt(amount));
+      return await updateAmountForUser(userId, BigInt(amount), res.sourceEventId);
     }
     case "create_order": {
       const parsedData = createOrderEngineResponseSchema.parse(res.data);
       logger.info({ userId: res.userId }, "saving new order");
-      return await createOrder(parsedData, res.userId);
+      return await createOrder(parsedData, res.userId, res.sourceEventId);
     }
     case "cancel_order": {
       const { orderId, releasedMargin } = cancelOrderEngineResponseSchema.parse(res.data);
       logger.info({ userId: res.userId, orderId }, "cancelling order");
-      return await cancelOrder(orderId, res.userId, releasedMargin);
+      return await cancelOrder(orderId, res.userId, releasedMargin, res.sourceEventId);
     }
     case "index_price_update": {
       const { markets } = indexPriceUpdateEngineResponsesSchema.parse(res.data);
-      for (const market of markets) {
-        await processLiquidations(market);
-      }
+      await processLiquidations(markets, res.sourceEventId);
       const liquidationCount = markets.reduce(
         (n, m) => n + m.liquidations.length,
         0,

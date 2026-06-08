@@ -1,4 +1,4 @@
-import { prisma, OrderStatus } from "@repo/db";
+import { prisma, OrderStatus, Prisma } from "@repo/db";
 import {
   CreateOrderEngineResponse,
   IndexPriceUpdateEngineResponse,
@@ -6,13 +6,17 @@ import {
   MAKER_FEE_RATE,
 } from "@repo/schema";
 import { getMarketBySymbol } from "./market.repository";
+import { claimEvent } from "../lib/idempotency";
 
 export const cancelOrder = async (
   orderId: string,
   userId: string,
   releasedMargin: string,
+  sourceEventId: string,
 ) => {
   return await prisma.$transaction(async (tx) => {
+    if (!(await claimEvent(tx, sourceEventId))) return;
+
     await tx.order.update({
       where: { id: orderId },
       data: { status: "CANCELLED" as OrderStatus },
@@ -42,11 +46,14 @@ export const cancelOrder = async (
 export const createOrder = async (
   input: CreateOrderEngineResponse,
   userId: string,
+  sourceEventId: string,
 ) => {
   const market = await getMarketBySymbol(input.symbol);
   if (!market) throw new Error("Invalid market");
 
   return await prisma.$transaction(async (tx) => {
+    if (!(await claimEvent(tx, sourceEventId))) return;
+
     const order = await tx.order.upsert({
       create: {
         id: input.orderId,
@@ -137,75 +144,90 @@ export const createOrder = async (
 };
 
 export const processLiquidations = async (
+  markets: IndexPriceUpdateEngineResponse[],
+  sourceEventId: string,
+) => {
+  if (markets.every((m) => m.cancelledOrders.length === 0 && m.liquidations.length === 0))
+    return;
+
+  await prisma.$transaction(async (tx) => {
+    if (!(await claimEvent(tx, sourceEventId))) return;
+
+    for (const data of markets) {
+      await processMarketLiquidations(tx, data);
+    }
+  });
+};
+
+const processMarketLiquidations = async (
+  tx: Prisma.TransactionClient,
   data: IndexPriceUpdateEngineResponse,
 ) => {
   const { cancelledOrders, liquidations, balanceSnapshots } = data;
   if (cancelledOrders.length === 0 && liquidations.length === 0) return;
 
-  await prisma.$transaction(async (tx) => {
-    if (cancelledOrders.length > 0) {
-      await tx.order.updateMany({
-        where: { id: { in: cancelledOrders.map((o) => o.orderId) } },
-        data: { status: "LIQUIDATED" },
-      });
-    }
+  if (cancelledOrders.length > 0) {
+    await tx.order.updateMany({
+      where: { id: { in: cancelledOrders.map((o) => o.orderId) } },
+      data: { status: "LIQUIDATED" },
+    });
+  }
 
-    for (const liq of liquidations) {
-      if (liq.filledQty === 0) continue;
+  for (const liq of liquidations) {
+    if (liq.filledQty === 0) continue;
 
-      const market = await getMarketBySymbol(liq.market);
-      if (!market) continue;
+    const market = await getMarketBySymbol(liq.market);
+    if (!market) continue;
 
-      await tx.order.create({
-        data: {
-          id: liq.liquidationOrderId,
-          userId: liq.userId,
+    await tx.order.create({
+      data: {
+        id: liq.liquidationOrderId,
+        userId: liq.userId,
+        marketId: market.id,
+        type: "MARKET",
+        side: liq.side,
+        status: "LIQUIDATED",
+        price: liq.avgFillPrice,
+        qty: String(liq.qty),
+        filledQty: String(liq.filledQty),
+        leverage: liq.leverage,
+        reduceOnly: true,
+      },
+    });
+
+    if (liq.fills.length > 0) {
+      await tx.fill.createMany({
+        data: liq.fills.map((f) => ({
+          takerOrderId: liq.liquidationOrderId,
+          makerOrderId: f.makerOrderId,
+          takerUserId: liq.userId,
+          makerUserId: f.makerUserId,
           marketId: market.id,
-          type: "MARKET",
-          side: liq.side,
-          status: "LIQUIDATED",
-          price: liq.avgFillPrice,
-          qty: String(liq.qty),
-          filledQty: String(liq.filledQty),
-          leverage: liq.leverage,
-          reduceOnly: true,
-        },
-      });
-
-      if (liq.fills.length > 0) {
-        await tx.fill.createMany({
-          data: liq.fills.map((f) => ({
-            takerOrderId: liq.liquidationOrderId,
-            makerOrderId: f.makerOrderId,
-            takerUserId: liq.userId,
-            makerUserId: f.makerUserId,
-            marketId: market.id,
-            price: f.price,
-            qty: String(f.qty),
-          })),
-        });
-      }
-
-      const snapshot = balanceSnapshots.find((s) => s.userId === liq.userId);
-      await tx.transaction.create({
-        data: {
-          userId: liq.userId,
-          type: "LIQUIDATION",
-          asset: "USD",
-          amount: liq.avgFillPrice,
-          balanceAfter: snapshot?.available ?? "0",
-        },
+          price: f.price,
+          qty: String(f.qty),
+        })),
       });
     }
 
-    for (const snap of balanceSnapshots) {
-      await tx.balance.updateMany({
-        where: { userId: snap.userId, asset: "USD" },
-        data: {
-          availableBalance: snap.available,
-          lockedBalance: snap.locked,
-        },
-      });
-    }
-  });
+    const snapshot = balanceSnapshots.find((s) => s.userId === liq.userId);
+    await tx.transaction.create({
+      data: {
+        userId: liq.userId,
+        type: "LIQUIDATION",
+        asset: "USD",
+        amount: liq.avgFillPrice,
+        balanceAfter: snapshot?.available ?? "0",
+      },
+    });
+  }
+
+  for (const snap of balanceSnapshots) {
+    await tx.balance.updateMany({
+      where: { userId: snap.userId, asset: "USD" },
+      data: {
+        availableBalance: snap.available,
+        lockedBalance: snap.locked,
+      },
+    });
+  }
 };

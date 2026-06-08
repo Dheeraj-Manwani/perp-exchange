@@ -16,6 +16,7 @@ export interface EngineRequest {
 export interface EngineResponse {
   userId: string;
   correlationId: string;
+  sourceEventId: string;
   type: EngineCommandType;
   ok: boolean;
   data?: Record<string, unknown>;

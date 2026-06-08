@@ -40,4 +40,22 @@ export class PositionManager {
       this.positions.set(userId, open);
     }
   }
+
+  serialise() {
+    return {
+      positions: Array.from(this.positions).map(
+        ([userId, positions]) =>
+          [userId, positions.map((pos) => pos.serialise())] as const,
+      ),
+    };
+  }
+
+  restoreFrom(data: ReturnType<PositionManager["serialise"]>): void {
+    this.positions = new Map(
+      data.positions.map(([userId, positions]) => [
+        userId,
+        positions.map((pos) => Position.fromSerialised(pos)),
+      ]),
+    );
+  }
 }

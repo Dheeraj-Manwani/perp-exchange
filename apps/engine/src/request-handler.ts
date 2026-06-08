@@ -9,13 +9,12 @@ import {
 } from "@repo/schema";
 import { Exchange } from "./core/Exchange";
 import { Account } from "./core/Account";
-import { logger } from "@repo/logger";
-
-const exchange = Exchange.instance;
 
 export function handleEngineRequest(
   message: EngineRequest,
 ): Record<string, unknown> | undefined {
+  const exchange = Exchange.instance;
+
   switch (message.type) {
     case "create_user": {
       const { userId, username } = signupPayload.parse(message.payload);

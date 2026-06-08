@@ -51,7 +51,6 @@ export class Account {
   deposit(amount: bigint): void {
     if (amount <= 0n) throw new Error("Deposit amount should be positive");
     this._available += amount;
-
   }
 
   consumeLockedMargin(amount: bigint): void {
@@ -64,5 +63,25 @@ export class Account {
 
   debitAvailable(amount: bigint): void {
     this._available = getMax(0n, this._available - amount);
+  }
+
+  serialise() {
+    return {
+      userId: this.userId,
+      username: this.username,
+      maxLeverage: this.maxLeverage,
+      _available: this._available,
+      _locked: this._locked,
+    };
+  }
+
+  static fromSerialised(data: ReturnType<Account["serialise"]>): Account {
+    return new Account({
+      userId: data.userId,
+      username: data.username,
+      maxLeverage: data.maxLeverage,
+      available: data._available,
+      locked: data._locked,
+    });
   }
 }

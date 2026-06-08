@@ -116,4 +116,39 @@ export class Position {
       ? mulDiv([markPrice - this.averagePrice, this.qty])
       : mulDiv([this.averagePrice - markPrice, this.qty]);
   }
+
+  serialise() {
+    return {
+      positionId: this.positionId,
+      userId: this.userId,
+      market: this.market,
+      orderType: this.orderType,
+      side: this.side,
+      qty: this.qty,
+      margin: this.margin,
+      leverage: this.leverage,
+      averagePrice: this.averagePrice,
+      liquidationPrice: this.liquidationPrice,
+      tradeHistory: this.tradeHistory,
+      isOpen: this.isOpen,
+    };
+  }
+
+  static fromSerialised(data: ReturnType<Position["serialise"]>): Position {
+    const position = new Position({
+      positionId: data.positionId,
+      userId: data.userId,
+      market: data.market,
+      orderType: data.orderType,
+      side: data.side,
+      qty: data.qty,
+      margin: data.margin,
+      leverage: data.leverage,
+      averagePrice: data.averagePrice,
+    });
+    position.liquidationPrice = data.liquidationPrice;
+    position.tradeHistory = data.tradeHistory;
+    position.isOpen = data.isOpen;
+    return position;
+  }
 }

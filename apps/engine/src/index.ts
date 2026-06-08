@@ -6,11 +6,41 @@ import { logger } from "@repo/logger";
 import { handleEngineRequest } from "./request-handler";
 import { env } from "./utils/env";
 import { fetchLastState } from "./utils/startup";
+import { SnapshotService } from "./services/SnapshotService";
+import { compareStreamIds } from "./utils/utils";
+import "./utils/scheduler";
+
+// Durable record of the last acked event id, updated on every ack
+const LAST_ACKED_EVENT_ID_KEY = `${env.ENGINE_QUEUE}:last-acked-event-id`;
 
 (async () => {
   await connectRedis();
-  // TODO: refinement needed for crash recovery in the startup logic (s3)
   await fetchLastState();
+
+  const snapshotService = SnapshotService.instance;
+  const restored = await snapshotService.restoreLatestSnapshot();
+  const lastAckedEventIdBeforeCrash = await brokerClient.get(
+    LAST_ACKED_EVENT_ID_KEY,
+  );
+
+  if (restored) {
+    // Rewind the consumer group to the snapshot's position so xReadGroup redelivers everything that happened after it was taken
+    await brokerClient.xGroupSetId(
+      env.ENGINE_QUEUE,
+      GROUP_ENGINE,
+      restored.lastRedisOrderEventId,
+    );
+  }
+
+  const ack = async (id: string) => {
+    await brokerClient
+      .multi()
+      .xAck(env.ENGINE_QUEUE, GROUP_ENGINE, id)
+      .set(LAST_ACKED_EVENT_ID_KEY, id)
+      .exec();
+    snapshotService.updateLastEventId(id);
+  };
+
   for (;;) {
     const streams: any = await brokerClient.xReadGroup(
       GROUP_ENGINE,
@@ -22,17 +52,22 @@ import { fetchLastState } from "./utils/startup";
 
     for (const stream of streams) {
       for (const { id, message } of stream.messages) {
+        // Replayed events at or before this checkpoint were already acked
+        const alreadyAcked =
+          lastAckedEventIdBeforeCrash !== null &&
+          compareStreamIds(id, lastAckedEventIdBeforeCrash) <= 0;
+
         let parsed: any;
         try {
           parsed = JSON.parse(message["data"]);
           if (!parsed.type) {
             logger.error("invalid message — missing type");
-            await brokerClient.xAck(env.ENGINE_QUEUE, GROUP_ENGINE, id);
+            await ack(id);
             continue;
           }
         } catch {
           logger.error({ id }, "Skipping unparseable broker message");
-          await brokerClient.xAck(env.ENGINE_QUEUE, GROUP_ENGINE, id);
+          await ack(id);
           continue;
         }
 
@@ -46,23 +81,26 @@ import { fetchLastState } from "./utils/startup";
               responseQueue: env.RESPONSE_QUEUE,
             } as EngineRequest);
             logger.info("index_price_update");
-            await sendResponse(env.RESPONSE_QUEUE, {
-              userId: "system",
-              type: "index_price_update",
-              correlationId: uuid(),
-              ok: true,
-              data,
-            });
+            if (!alreadyAcked) {
+              await sendResponse(env.RESPONSE_QUEUE, {
+                userId: "system",
+                type: "index_price_update",
+                correlationId: uuid(),
+                sourceEventId: id,
+                ok: true,
+                data,
+              });
+            }
           } catch (error) {
             logger.error({ error }, "Error processing index_price_update");
           }
-          await brokerClient.xAck(env.ENGINE_QUEUE, GROUP_ENGINE, id);
+          await ack(id);
           continue;
         }
 
         if (!parsed.responseQueue || !parsed.correlationId) {
           logger.error("invalid message — missing required fields");
-          await brokerClient.xAck(env.ENGINE_QUEUE, GROUP_ENGINE, id);
+          await ack(id);
           continue;
         }
 
@@ -71,24 +109,30 @@ import { fetchLastState } from "./utils/startup";
 
         try {
           const data = handleEngineRequest(request);
-          await sendResponse(request.responseQueue, {
-            userId: request.userId,
-            type: request.type,
-            correlationId: request.correlationId,
-            ok: true,
-            data,
-          });
+          if (!alreadyAcked) {
+            await sendResponse(request.responseQueue, {
+              userId: request.userId,
+              type: request.type,
+              correlationId: request.correlationId,
+              sourceEventId: id,
+              ok: true,
+              data,
+            });
+          }
         } catch (error) {
-          await sendResponse(request.responseQueue, {
-            userId: request.userId,
-            type: request.type,
-            correlationId: request.correlationId,
-            ok: false,
-            error: error instanceof Error ? error.message : "engine_error",
-          });
+          if (!alreadyAcked) {
+            await sendResponse(request.responseQueue, {
+              userId: request.userId,
+              type: request.type,
+              correlationId: request.correlationId,
+              sourceEventId: id,
+              ok: false,
+              error: error instanceof Error ? error.message : "engine_error",
+            });
+          }
         }
 
-        await brokerClient.xAck(env.ENGINE_QUEUE, GROUP_ENGINE, id);
+        await ack(id);
       }
     }
   }

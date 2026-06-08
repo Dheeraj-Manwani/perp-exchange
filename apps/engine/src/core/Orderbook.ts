@@ -108,4 +108,32 @@ export class Orderbook {
 
     return cancelled;
   }
+
+  serialise() {
+    return {
+      asset: this.asset,
+      lastTradedPrice: this.lastTradedPrice,
+      indexPrice: this.indexPrice,
+
+      asks: Array.from(this.asks).map(
+        (ask) => [ask[0], ask[1].serialise()] as const,
+      ),
+      bids: Array.from(this.bids).map(
+        (bid) => [bid[0], bid[1].serialise()] as const,
+      ),
+    };
+  }
+
+  static fromSerialised(data: ReturnType<Orderbook["serialise"]>): Orderbook {
+    const book = new Orderbook(data.asset);
+    book.lastTradedPrice = data.lastTradedPrice;
+    book.indexPrice = data.indexPrice;
+    book.asks = new Map(
+      data.asks.map(([price, level]) => [price, PriceLevel.fromSerialised(level)]),
+    );
+    book.bids = new Map(
+      data.bids.map(([price, level]) => [price, PriceLevel.fromSerialised(level)]),
+    );
+    return book;
+  }
 }

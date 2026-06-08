@@ -75,4 +75,12 @@ export class PriceLevel {
     this.queue = this.queue.filter((o) => o.qty - o.filledQty > 0);
     return fills;
   }
+
+  serialise() {
+    return { price: this.price, queue: this.queue };
+  }
+
+  static fromSerialised(data: ReturnType<PriceLevel["serialise"]>): PriceLevel {
+    return new PriceLevel(data.price, data.queue);
+  }
 }

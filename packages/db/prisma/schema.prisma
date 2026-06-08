@@ -172,6 +172,27 @@ model Transaction {
   @@index([userId, createdAt(sort: Desc)])
 }
 
+model ProcessedEngineEvent {
+  id String @id
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+
+  @@index([createdAt])
+}
+
+model OrderbookSnapshots {
+  id String @id @default(uuid()) @db.Uuid()
+
+  objectKey String
+  checksum  String
+  sizeBytes Int
+
+  createdAt             DateTime @default(now()) @db.Timestamptz()
+  lastRedisOrderEventId String
+
+  @@index([createdAt])
+}
+
 // ── Enums ────────────────────────────────────────────────────
 
 enum KycStatus {

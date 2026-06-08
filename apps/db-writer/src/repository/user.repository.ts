@@ -1,7 +1,14 @@
 import { prisma } from "@repo/db";
+import { claimEvent } from "../lib/idempotency";
 
-export const updateAmountForUser = async (userId: string, amount: bigint) => {
+export const updateAmountForUser = async (
+  userId: string,
+  amount: bigint,
+  sourceEventId: string,
+) => {
   await prisma.$transaction(async (tx) => {
+    if (!(await claimEvent(tx, sourceEventId))) return;
+
     const existing = await tx.balance.findUnique({
       where: { userId_asset: { userId, asset: "USD" } },
       select: { availableBalance: true },
