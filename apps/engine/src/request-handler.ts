@@ -1,6 +1,7 @@
 import {
   cancelOrderPayload,
   EngineRequest,
+  fundingSettlePayload,
   IndexPriceUpdateEngineResponse,
   indexPriceChangePayload,
   onRampPayload,
@@ -48,7 +49,11 @@ export function handleEngineRequest(
       for (const [market, price] of Object.entries(marketPrices)) {
         markets.push(exchange.liquidation.onPriceUpdate(market, BigInt(price)));
       }
-      return { markets } as unknown as Record<string, unknown>;
+      return { markets };
+    }
+    case "funding_settle": {
+      const { period } = fundingSettlePayload.parse(message.payload);
+      return exchange.funding.settle(period);
     }
     default:
       throw new Error(`Unknown command type: ${message.type}`);

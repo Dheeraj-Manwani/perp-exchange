@@ -5,6 +5,7 @@ import {
   onRampPayload,
   createOrderEngineResponseSchema,
   cancelOrderEngineResponseSchema,
+  fundingSettleEngineResponseSchema,
   indexPriceUpdateEngineResponsesSchema,
 } from "@repo/schema";
 import { updateAmountForUser } from "../repository/user.repository";
@@ -13,6 +14,7 @@ import {
   createOrder,
   processLiquidations,
 } from "../repository/order.repository";
+import { processFundingSettlement } from "../repository/funding.repository";
 
 export const handleBackendToEngine = async (data: EngineRequest) => {
   // switch (data.type) {
@@ -63,6 +65,18 @@ export const handleEngineToBackend = async (res: EngineResponse) => {
       );
       if (liquidationCount > 0) {
         logger.info({ liquidationCount }, "processed liquidations");
+      }
+      return;
+    }
+    case "funding_settle": {
+      const data = fundingSettleEngineResponseSchema.parse(res.data);
+      await processFundingSettlement(data, res.sourceEventId);
+      const paymentCount = data.markets.reduce(
+        (n, m) => n + m.payments.length,
+        0,
+      );
+      if (paymentCount > 0) {
+        logger.info({ period: data.period, paymentCount }, "processed funding settlement");
       }
       return;
     }

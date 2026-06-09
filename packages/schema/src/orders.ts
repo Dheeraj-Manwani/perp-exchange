@@ -116,7 +116,9 @@ export const liquidationEventRecordSchema = z.object({
   adlTriggered: z.boolean(),
 });
 
-export type LiquidationEventRecord = z.infer<typeof liquidationEventRecordSchema>;
+export type LiquidationEventRecord = z.infer<
+  typeof liquidationEventRecordSchema
+>;
 
 export const indexPriceUpdateEngineResponseSchema = z.object({
   cancelledOrders: z.array(
@@ -143,3 +145,37 @@ export type IndexPriceUpdateEngineResponse = z.infer<
 export const indexPriceUpdateEngineResponsesSchema = z.object({
   markets: z.array(indexPriceUpdateEngineResponseSchema),
 });
+
+export const fundingPaymentRecordSchema = z.object({
+  userId: z.string(),
+  market: z.string(),
+  side: orderSideSchema,
+  qty: z.number(),
+  markPrice: z.string(),
+  payment: z.string(),
+  direction: z.enum(["PAID", "RECEIVED"]),
+});
+
+export type FundingPaymentRecord = z.infer<typeof fundingPaymentRecordSchema>;
+
+export const fundingSettleEngineResponseSchema = z.object({
+  period: z.string(),
+  markets: z.array(
+    z.object({
+      market: z.string(),
+      fundingRateBps: z.string(),
+      payments: z.array(fundingPaymentRecordSchema),
+    }),
+  ),
+  balanceSnapshots: z.array(
+    z.object({
+      userId: z.string(),
+      available: z.string(),
+      locked: z.string(),
+    }),
+  ),
+});
+
+export type FundingSettleEngineResponse = z.infer<
+  typeof fundingSettleEngineResponseSchema
+>;

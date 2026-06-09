@@ -16,3 +16,7 @@ export const INSURANCE_FUND_SEED = 50_000n;
 export const SUPPORTED_EXCHANGES = {
   binance: "binance",
 };
+
+export const FUNDING_INTERVAL_SECONDS = 60 * 60 * 8;
+export const FUNDING_RATE_CAP_BPS = 75n;
+export const FUNDING_BPS_DENOMINATOR = 10_000n;

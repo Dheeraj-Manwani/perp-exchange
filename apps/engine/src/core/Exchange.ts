@@ -2,6 +2,7 @@ import { AccountService } from "../services/AccountService";
 import { OrderService } from "../services/OrderService";
 import { existingMarkets } from "../utils/startup";
 import { EngineSnapshot } from "./EngineSnapshot";
+import { FundingEngine } from "./FundingEngine";
 import { InsuranceFund } from "./InsuranceFund";
 import { LiquidationEngine } from "./LiquidationEngine";
 import { OrderbookRegistry } from "./OrderbookRegistry";
@@ -25,6 +26,7 @@ export class Exchange {
 
   readonly insurance: InsuranceFund;
   readonly liquidation: LiquidationEngine;
+  readonly funding: FundingEngine;
 
   constructor() {
     this.users = new UserRegistry();
@@ -44,6 +46,11 @@ export class Exchange {
       this.positions,
       this.orderbooks,
       this.insurance,
+    );
+    this.funding = new FundingEngine(
+      this.users,
+      this.positions,
+      this.orderbooks,
     );
   }
 

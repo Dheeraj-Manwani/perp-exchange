@@ -1,9 +1,12 @@
 import {
   CancelledOrder,
   ConsumedFill,
+  FUNDING_BPS_DENOMINATOR,
+  FUNDING_RATE_CAP_BPS,
   OpenOrder,
   OrderSide,
 } from "@repo/schema";
+import { mulDiv } from "../utils/math";
 import { PriceLevel } from "./PriceLevel";
 
 export class Orderbook {
@@ -11,11 +14,65 @@ export class Orderbook {
   lastTradedPrice: bigint = 0n;
   indexPrice: bigint = 0n;
 
+  // Funding-rate accumulator: tracks time-weighted premium index in bps×ms
+  private _premiumBpsAccum: bigint = 0n;
+  private _fundingWindowStart: number = Date.now();
+  private _lastFundingUpdateAt: number = Date.now();
+
   asks: Map<string, PriceLevel> = new Map();
   bids: Map<string, PriceLevel> = new Map();
 
   constructor(asset: string) {
     this.asset = asset;
+  }
+
+  /**
+   * Called on every index price tick. Advances the TWAP accumulator using
+   * the time elapsed since the last update and the current premium (mark vs index).
+   * Uses lastTradedPrice as mark price when available, falls back to indexPrice.
+   */
+  updateFundingAccumulator(indexPrice: bigint): void {
+    if (indexPrice === 0n) return;
+    const now = Date.now();
+    const elapsedMs = BigInt(now - this._lastFundingUpdateAt);
+    if (elapsedMs > 0n) {
+      const markPrice =
+        this.lastTradedPrice > 0n ? this.lastTradedPrice : indexPrice;
+      const premium = markPrice - indexPrice;
+      this._premiumBpsAccum += mulDiv(
+        [premium, FUNDING_BPS_DENOMINATOR, elapsedMs],
+        [indexPrice],
+      );
+    }
+    this._lastFundingUpdateAt = now;
+  }
+
+  /**
+   * Computes the time-weighted average funding rate for the current window,
+   * clamps it to ±FUNDING_RATE_CAP_BPS, then resets the accumulator for the
+   * next period. Returns the rate in signed basis points.
+   */
+  computeAndResetFundingRate(): bigint {
+    const now = Date.now();
+    const totalMs = BigInt(now - this._fundingWindowStart);
+
+    let rateBps = 0n;
+    if (totalMs > 0n) {
+      const twapBps = this._premiumBpsAccum / totalMs;
+      if (twapBps > FUNDING_RATE_CAP_BPS) {
+        rateBps = FUNDING_RATE_CAP_BPS;
+      } else if (twapBps < -FUNDING_RATE_CAP_BPS) {
+        rateBps = -FUNDING_RATE_CAP_BPS;
+      } else {
+        rateBps = twapBps;
+      }
+    }
+
+    this._premiumBpsAccum = 0n;
+    this._fundingWindowStart = now;
+    this._lastFundingUpdateAt = now;
+
+    return rateBps;
   }
 
   levelsToMatch(takerSide: OrderSide): Array<[bigint, PriceLevel]> {
@@ -114,7 +171,9 @@ export class Orderbook {
       asset: this.asset,
       lastTradedPrice: this.lastTradedPrice,
       indexPrice: this.indexPrice,
-
+      _premiumBpsAccum: this._premiumBpsAccum,
+      _fundingWindowStart: this._fundingWindowStart,
+      _lastFundingUpdateAt: this._lastFundingUpdateAt,
       asks: Array.from(this.asks).map(
         (ask) => [ask[0], ask[1].serialise()] as const,
       ),
@@ -128,11 +187,20 @@ export class Orderbook {
     const book = new Orderbook(data.asset);
     book.lastTradedPrice = data.lastTradedPrice;
     book.indexPrice = data.indexPrice;
+    book._premiumBpsAccum = data._premiumBpsAccum ?? 0n;
+    book._fundingWindowStart = data._fundingWindowStart ?? Date.now();
+    book._lastFundingUpdateAt = data._lastFundingUpdateAt ?? Date.now();
     book.asks = new Map(
-      data.asks.map(([price, level]) => [price, PriceLevel.fromSerialised(level)]),
+      data.asks.map(([price, level]) => [
+        price,
+        PriceLevel.fromSerialised(level),
+      ]),
     );
     book.bids = new Map(
-      data.bids.map(([price, level]) => [price, PriceLevel.fromSerialised(level)]),
+      data.bids.map(([price, level]) => [
+        price,
+        PriceLevel.fromSerialised(level),
+      ]),
     );
     return book;
   }

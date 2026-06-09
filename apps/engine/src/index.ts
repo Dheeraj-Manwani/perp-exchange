@@ -72,7 +72,11 @@ const LAST_ACKED_EVENT_ID_KEY = `${env.ENGINE_QUEUE}:last-acked-event-id`;
         }
 
         // index_price_update is fire-and-forget from market-data (no responseQueue/correlationId)
-        if (parsed.type === "index_price_update" && !parsed.responseQueue) {
+        if (
+          (parsed.type === "index_price_update" ||
+            parsed.type === "funding_settle") &&
+          !parsed.responseQueue
+        ) {
           try {
             const data = handleEngineRequest({
               ...parsed,
@@ -80,11 +84,11 @@ const LAST_ACKED_EVENT_ID_KEY = `${env.ENGINE_QUEUE}:last-acked-event-id`;
               correlationId: uuid(),
               responseQueue: env.RESPONSE_QUEUE,
             } as EngineRequest);
-            logger.info("index_price_update");
+            logger.info(parsed.type);
             if (!alreadyAcked) {
               await sendResponse(env.RESPONSE_QUEUE, {
                 userId: "system",
-                type: "index_price_update",
+                type: parsed.type,
                 correlationId: uuid(),
                 sourceEventId: id,
                 ok: true,
@@ -92,7 +96,10 @@ const LAST_ACKED_EVENT_ID_KEY = `${env.ENGINE_QUEUE}:last-acked-event-id`;
               });
             }
           } catch (error) {
-            logger.error({ error }, "Error processing index_price_update");
+            logger.error(
+              { error, type: parsed.type },
+              "Error processing market-data command",
+            );
           }
           await ack(id);
           continue;

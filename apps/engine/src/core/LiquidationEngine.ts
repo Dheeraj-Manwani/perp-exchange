@@ -39,6 +39,7 @@ export class LiquidationEngine {
   onPriceUpdate(market: string, price: bigint): IndexPriceUpdateEngineResponse {
     const orderbook = this.orderbooks.get(market);
     orderbook.indexPrice = price;
+    orderbook.updateFundingAccumulator(price);
 
     const underwater: Position[] = [];
     this.positions.forEachOpen((userId, pos) => {

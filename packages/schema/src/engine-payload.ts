@@ -27,3 +27,9 @@ export const indexPriceChangePayload = z.object({
 });
 
 export type IndexPriceChangePayload = z.infer<typeof indexPriceChangePayload>;
+
+export const fundingSettlePayload = z.object({
+  period: z.string(),
+});
+
+export type FundingSettlePayload = z.infer<typeof fundingSettlePayload>;

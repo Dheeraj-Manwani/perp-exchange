@@ -28,4 +28,8 @@ export class OrderbookRegistry {
     if (!book) throw new Error(`Market - ${symbol} does not exists`);
     return book;
   }
+
+  entries(): IterableIterator<[string, Orderbook]> {
+    return this.books.entries();
+  }
 }

@@ -1,7 +1,8 @@
 import { logger } from "@repo/logger";
 import { getMarketFeedMap } from "./util/market";
-import { connectRedis, disconnectRedis } from "./util/redis-client";
+import { connectRedis, disconnectRedis, publisher } from "./util/redis-client";
 import { connectBinanceFeed } from "./ws";
+import { startFundingDispatch } from "./util/funding";
 import type { MarketInfo } from "./util/market";
 
 const buildStreams = (map: Map<string, MarketInfo>) =>
@@ -16,6 +17,7 @@ async function main() {
   }
 
   const stopFeed = connectBinanceFeed(buildStreams(feedMap), feedMap);
+  startFundingDispatch();
 
   async function shutdown() {
     logger.info("Shutting down market-data service");

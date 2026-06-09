@@ -31,7 +31,9 @@
       "PowerShell(New-Item *)",
       "Bash(npx tsc *)",
       "Bash(bun x *)",
-      "Bash(git status *)"
+      "Bash(git status *)",
+      "Bash(Select-Object FullName)",
+      "WebSearch"
     ]
   }
 }
