@@ -1,7 +1,11 @@
 import { EngineResponse } from "@repo/schema";
-import { responseClient } from "./redis-client";
+import { pubSubClient, responseClient } from "./redis-client";
+import { env } from "./env";
 
-export async function sendResponse(responseQueue: string, response: EngineResponse): Promise<void> {
+export async function sendResponse(
+  responseQueue: string,
+  response: EngineResponse,
+): Promise<void> {
   await responseClient.xAdd(
     responseQueue,
     "*",
@@ -16,4 +20,10 @@ export async function sendResponse(responseQueue: string, response: EngineRespon
       },
     },
   );
+}
+
+export async function sendPubSubResponse(
+  response: EngineResponse,
+): Promise<void> {
+  await pubSubClient.publish(env.PUBSUB_CHANNEL, JSON.stringify(response));
 }

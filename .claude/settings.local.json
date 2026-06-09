@@ -33,7 +33,8 @@
       "Bash(bun x *)",
       "Bash(git status *)",
       "Bash(Select-Object FullName)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(bunx tsx *)"
     ]
   }
 }

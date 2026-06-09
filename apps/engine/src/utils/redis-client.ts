@@ -14,6 +14,16 @@ export const responseClient: ReturnType<typeof createClient> = createClient({
   logger.error("Redis publisher error", error);
 });
 
+export const pubSubClient: ReturnType<typeof createClient> = createClient({
+  url: env.REDIS_URL,
+}).on("error", (error) => {
+  logger.error("Redis pubsub publisher error", error);
+});
+
 export async function connectRedis(): Promise<void> {
-  await Promise.all([brokerClient.connect(), responseClient.connect()]);
+  await Promise.all([
+    brokerClient.connect(),
+    responseClient.connect(),
+    pubSubClient.connect(),
+  ]);
 }
