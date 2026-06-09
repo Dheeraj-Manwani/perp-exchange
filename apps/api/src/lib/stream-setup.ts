@@ -2,6 +2,7 @@ import {
   GROUP_DB_SERVICE,
   GROUP_ENGINE,
   GROUP_MAIN_BACKEND,
+  GROUP_WS_SERVICE,
 } from "@repo/schema";
 import { publisher } from "./redis-client";
 import { logger } from "@repo/logger";
@@ -32,6 +33,7 @@ export const setupStream = async () => {
   // Response stream — read by this API server
   await createGroup(env.RESPONSE_QUEUE, GROUP_MAIN_BACKEND);
   await createGroup(env.RESPONSE_QUEUE, GROUP_DB_SERVICE);
+  await createGroup(env.RESPONSE_QUEUE, GROUP_WS_SERVICE);
 
   listenToEngine();
 };

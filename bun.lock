@@ -118,6 +118,26 @@
         "typescript": "5.9.2",
       },
     },
+    "apps/ws": {
+      "name": "@repo/ws",
+      "version": "1.0.0",
+      "dependencies": {
+        "@repo/logger": "workspace:*",
+        "@repo/schema": "workspace:*",
+        "dotenv": "^17.4.2",
+        "redis": "^5.12.1",
+        "ws": "^8.21.0",
+      },
+      "devDependencies": {
+        "@repo/typescript-config": "workspace:*",
+        "@types/bun": "latest",
+        "@types/dotenv": "^8.2.3",
+        "@types/ws": "^8.18.1",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
     "packages/db": {
       "name": "@repo/db",
       "version": "1.0.0",
@@ -496,6 +516,8 @@
     "@repo/typescript-config": ["@repo/typescript-config@workspace:packages/typescript-config"],
 
     "@repo/ui": ["@repo/ui@workspace:packages/ui"],
+
+    "@repo/ws": ["@repo/ws@workspace:apps/ws"],
 
     "@rollup/rollup-android-arm-eabi": ["@rollup/rollup-android-arm-eabi@4.60.4", "", { "os": "android", "cpu": "arm" }, "sha512-F5QXMSiFebS9hKZj02XhWLLnRpJ3B3AROP0tWbFBSj+6kCbg5m9j5JoHKd4mmSVy5mS/IMQloYgYxCuJC0fxEQ=="],
 
