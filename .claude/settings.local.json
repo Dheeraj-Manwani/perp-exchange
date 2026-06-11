@@ -35,7 +35,9 @@
       "Bash(Select-Object FullName)",
       "WebSearch",
       "Bash(bunx tsx *)",
-      "Bash(bunx vitest *)"
+      "Bash(bunx vitest *)",
+      "Bash(git stash *)",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }

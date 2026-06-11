@@ -69,6 +69,35 @@ export type CreateOrderEngineResponse = z.infer<
   typeof createOrderEngineResponseSchema
 >;
 
+// ─── Read query / param schemas (sprint 2 — order management reads) ───────────
+
+// Symbols are matched case-insensitively against Market.symbol.
+const optionalSymbolFilter = z
+  .string()
+  .min(1)
+  .transform((s) => s.toUpperCase())
+  .optional();
+
+export const openOrdersQuery = z.object({
+  symbol: optionalSymbolFilter,
+});
+export type OpenOrdersQuery = z.infer<typeof openOrdersQuery>;
+
+export const orderHistoryQuery = z.object({
+  symbol: optionalSymbolFilter,
+  status: orderStatusSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(1000).default(100),
+  page: z.coerce.number().int().min(1).default(1),
+});
+export type OrderHistoryQuery = z.infer<typeof orderHistoryQuery>;
+
+export const cancelAllOrdersQuery = z.object({
+  symbol: optionalSymbolFilter,
+});
+export type CancelAllOrdersQuery = z.infer<typeof cancelAllOrdersQuery>;
+
+export const orderIdParam = z.string().uuid();
+
 export const cancelOrderInputSchema = z.object({
   symbol: z.string(),
   side: orderSideSchema,
