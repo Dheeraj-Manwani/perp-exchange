@@ -52,6 +52,7 @@ model Market {
   positions       Position[]
   exchangeSymbols ExchangeSymbol[]
   fundingRates    FundingRate[]
+  transactions    Transaction[]
 }
 
 model ExchangeSymbol {
@@ -173,11 +174,19 @@ model Transaction {
   amount       String
   balanceAfter String
 
+  // Optional market dimension (null for non-market events like deposits).
+  // referenceId points at the related order/fill/funding-period for context.
+  marketId    String? @db.Uuid
+  referenceId String?
+
   createdAt DateTime @default(now()) @db.Timestamptz()
 
-  user User @relation(fields: [userId], references: [id])
+  user   User    @relation(fields: [userId], references: [id])
+  market Market? @relation(fields: [marketId], references: [id])
 
   @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, type, createdAt(sort: Desc)])
+  @@index([userId, marketId, createdAt(sort: Desc)])
 }
 
 model FundingRate {

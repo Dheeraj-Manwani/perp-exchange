@@ -105,6 +105,7 @@ export const createOrder = async (
 
       const makerFees = input.fills.map((f) => ({
         userId: f.makerUserId,
+        makerOrderId: f.makerOrderId,
         fee: String(Math.round(Number(f.price) * f.qty * MAKER_FEE_RATE)),
       }));
 
@@ -127,6 +128,8 @@ export const createOrder = async (
             asset: "USD",
             amount: takerFee,
             balanceAfter: balanceMap.get(userId) ?? "0",
+            marketId: market.id,
+            referenceId: input.orderId,
           },
           ...makerFees.map((m) => ({
             userId: m.userId,
@@ -134,6 +137,8 @@ export const createOrder = async (
             asset: "USD",
             amount: m.fee,
             balanceAfter: balanceMap.get(m.userId) ?? "0",
+            marketId: market.id,
+            referenceId: m.makerOrderId,
           })),
         ],
       });
@@ -217,6 +222,8 @@ const processMarketLiquidations = async (
         asset: "USD",
         amount: liq.avgFillPrice,
         balanceAfter: snapshot?.available ?? "0",
+        marketId: market.id,
+        referenceId: liq.liquidationOrderId,
       },
     });
   }

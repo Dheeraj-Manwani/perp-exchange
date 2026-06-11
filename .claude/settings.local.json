@@ -37,7 +37,14 @@
       "Bash(bunx tsx *)",
       "Bash(bunx vitest *)",
       "Bash(git stash *)",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(docker ps *)",
+      "Bash(cat .env)",
+      "Bash(npx prisma *)",
+      "Bash(docker-compose up *)",
+      "Bash(echo \"SCHEMA_EXIT: $?\")",
+      "Bash(echo \"API_EXIT: $?\")",
+      "Bash(echo \"DBWRITER_EXIT: $?\")"
     ]
   }
 }

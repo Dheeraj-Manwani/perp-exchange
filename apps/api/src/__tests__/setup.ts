@@ -56,6 +56,11 @@ vi.mock("@repo/db", () => {
       },
       balance: {
         create: vi.fn(),
+        findMany: vi.fn(),
+      },
+      transaction: {
+        findMany: vi.fn(),
+        count: vi.fn(),
       },
       market: {
         findMany: vi.fn(),

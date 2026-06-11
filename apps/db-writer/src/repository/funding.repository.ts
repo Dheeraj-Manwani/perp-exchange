@@ -55,6 +55,10 @@ export const processFundingSettlement = async (
         // Negative amount = paid by the user; positive = received by the user
         amount: p.direction === "PAID" ? `-${p.payment}` : p.payment,
         balanceAfter: balanceAfterMap.get(p.userId) ?? "0",
+        // Market dimension + funding-period reference so GET
+        // /account/funding-payments can return market + period context.
+        marketId: marketIdBySymbol.get(m.market) ?? null,
+        referenceId: data.period,
       })),
     );
 
