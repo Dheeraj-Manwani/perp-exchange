@@ -71,6 +71,10 @@ vi.mock("@repo/db", () => {
         findUnique: vi.fn(),
         count: vi.fn(),
       },
+      fill: {
+        findMany: vi.fn(),
+        count: vi.fn(),
+      },
     },
     Prisma: {
       PrismaClientKnownRequestError,

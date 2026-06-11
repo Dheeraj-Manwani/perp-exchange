@@ -13,6 +13,7 @@ import {
   createOrder as createOrderService,
   getOpenOrders as getOpenOrdersService,
   getOrderById as getOrderByIdService,
+  getOrderFills as getOrderFillsService,
   getOrderHistory as getOrderHistoryService,
 } from "../service/order.service";
 import { ok } from "../lib/response";
@@ -82,6 +83,12 @@ export const getOrderHistory = async (req: Request, res: Response) => {
 export const getOrder = async (req: Request, res: Response) => {
   const orderId = orderIdParam.parse(req.params.orderId);
   const data = await getOrderByIdService(req.userId!, orderId);
+  ok(res, data);
+};
+
+export const getOrderFills = async (req: Request, res: Response) => {
+  const orderId = orderIdParam.parse(req.params.orderId);
+  const data = await getOrderFillsService(req.userId!, orderId);
   ok(res, data);
 };
 

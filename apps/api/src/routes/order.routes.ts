@@ -11,6 +11,7 @@ router.delete("/order/:id", orderController.cancelOrder);
 router.get("/orders", orderController.getOpenOrders);
 router.get("/orders/history", orderController.getOrderHistory);
 router.get("/orders/:orderId", orderController.getOrder);
+router.get("/orders/:orderId/fills", orderController.getOrderFills);
 router.delete("/orders", orderController.cancelAllOrders);
 
 export default router;

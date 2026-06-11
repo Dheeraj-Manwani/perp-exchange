@@ -69,10 +69,33 @@ export const getOrderHistory = async (
   };
 };
 
-export const getOrderById = async (userId: string, orderId: string) => {
-  const order = await orderRepository.findOrderWithFills(orderId);
+type OrderWithFills = NonNullable<
+  Awaited<ReturnType<typeof orderRepository.findOrderWithFills>>
+>;
 
-  // 404 (not 403) when the order belongs to another user, so existence isn't leaked.
+// Merge an order's taker-side and maker-side fills into one time-sorted list,
+// tagging the role this order played in each fill.
+const mergeOrderFills = (order: OrderWithFills) =>
+  [
+    ...order.takerFills.map((f) => ({ ...f, role: "TAKER" as const })),
+    ...order.makerFills.map((f) => ({ ...f, role: "MAKER" as const })),
+  ]
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+    .map((f) => ({
+      id: f.id,
+      price: f.price,
+      qty: f.qty,
+      role: f.role,
+      createdAt: f.createdAt,
+    }));
+
+// Loads an order and asserts it belongs to the user. 404 (not 403) so the
+// existence of another user's order isn't leaked.
+const requireOwnedOrder = async (
+  userId: string,
+  orderId: string,
+): Promise<OrderWithFills> => {
+  const order = await orderRepository.findOrderWithFills(orderId);
   if (!order || order.userId !== userId) {
     throw new AppError(
       404,
@@ -80,22 +103,17 @@ export const getOrderById = async (userId: string, orderId: string) => {
       `Order not found: ${orderId}`,
     );
   }
+  return order;
+};
 
-  const fills = [
-    ...order.takerFills.map((f) => ({ ...f, role: "TAKER" as const })),
-    ...order.makerFills.map((f) => ({ ...f, role: "MAKER" as const })),
-  ].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+export const getOrderById = async (userId: string, orderId: string) => {
+  const order = await requireOwnedOrder(userId, orderId);
+  return { ...toOrderDto(order), fills: mergeOrderFills(order) };
+};
 
-  return {
-    ...toOrderDto(order),
-    fills: fills.map((f) => ({
-      id: f.id,
-      price: f.price,
-      qty: f.qty,
-      role: f.role,
-      createdAt: f.createdAt,
-    })),
-  };
+export const getOrderFills = async (userId: string, orderId: string) => {
+  const order = await requireOwnedOrder(userId, orderId);
+  return mergeOrderFills(order);
 };
 
 // Cancel-all reads the user's open orders from the DB, then fans out one
