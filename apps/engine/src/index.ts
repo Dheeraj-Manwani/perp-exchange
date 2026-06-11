@@ -1,7 +1,7 @@
 import { EngineRequest, GROUP_ENGINE } from "@repo/schema";
 import { v4 as uuid } from "uuid";
 import { brokerClient, connectRedis } from "./utils/redis-client";
-import { sendResponse } from "./utils/response";
+import { sendPubSubResponse, sendResponse } from "./utils/response";
 import { logger } from "@repo/logger";
 import { handleEngineRequest } from "./request-handler";
 import { env } from "./utils/env";
@@ -114,28 +114,43 @@ const LAST_ACKED_EVENT_ID_KEY = `${env.ENGINE_QUEUE}:last-acked-event-id`;
         const request = parsed as EngineRequest;
         logger.info(request.type);
 
+        // Read-only queries (e.g. get_index_price) reply over the pubsub
+        // channel so the backend's loopback resolves them via pubsub, leaving
+        // the durable response stream for state-changing commands.
+        const replyViaPubSub = request.type === "get_index_price";
+
         try {
           const data = handleEngineRequest(request);
           if (!alreadyAcked) {
-            await sendResponse(request.responseQueue, {
+            const response = {
               userId: request.userId,
               type: request.type,
               correlationId: request.correlationId,
               sourceEventId: id,
               ok: true,
               data,
-            });
+            };
+            if (replyViaPubSub) {
+              await sendPubSubResponse(response);
+            } else {
+              await sendResponse(request.responseQueue, response);
+            }
           }
         } catch (error) {
           if (!alreadyAcked) {
-            await sendResponse(request.responseQueue, {
+            const response = {
               userId: request.userId,
               type: request.type,
               correlationId: request.correlationId,
               sourceEventId: id,
               ok: false,
               error: error instanceof Error ? error.message : "engine_error",
-            });
+            };
+            if (replyViaPubSub) {
+              await sendPubSubResponse(response);
+            } else {
+              await sendResponse(request.responseQueue, response);
+            }
           }
         }
 

@@ -34,7 +34,8 @@
       "Bash(git status *)",
       "Bash(Select-Object FullName)",
       "WebSearch",
-      "Bash(bunx tsx *)"
+      "Bash(bunx tsx *)",
+      "Bash(bunx vitest *)"
     ]
   }
 }

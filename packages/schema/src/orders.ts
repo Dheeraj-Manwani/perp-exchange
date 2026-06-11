@@ -164,6 +164,8 @@ export const fundingSettleEngineResponseSchema = z.object({
     z.object({
       market: z.string(),
       fundingRateBps: z.string(),
+      // default for events emitted before markPrice was added to the payload
+      markPrice: z.string().default("0"),
       payments: z.array(fundingPaymentRecordSchema),
     }),
   ),

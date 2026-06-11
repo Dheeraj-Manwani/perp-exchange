@@ -27,7 +27,12 @@ export class FundingEngine {
           : orderbook.indexPrice;
 
       if (rateBps === 0n || markPrice === 0n) {
-        marketResults.push({ market, fundingRateBps: "0", payments: [] });
+        marketResults.push({
+          market,
+          fundingRateBps: "0",
+          markPrice: markPrice.toString(),
+          payments: [],
+        });
         continue;
       }
 
@@ -73,6 +78,7 @@ export class FundingEngine {
       marketResults.push({
         market,
         fundingRateBps: rateBps.toString(),
+        markPrice: markPrice.toString(),
         payments,
       });
     }

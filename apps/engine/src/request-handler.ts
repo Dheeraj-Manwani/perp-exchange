@@ -2,6 +2,8 @@ import {
   cancelOrderPayload,
   EngineRequest,
   fundingSettlePayload,
+  GetIndexPriceEngineResponse,
+  getIndexPricePayload,
   IndexPriceUpdateEngineResponse,
   indexPriceChangePayload,
   onRampPayload,
@@ -50,6 +52,16 @@ export function handleEngineRequest(
         markets.push(exchange.liquidation.onPriceUpdate(market, BigInt(price)));
       }
       return { markets };
+    }
+    case "get_index_price": {
+      const { symbol } = getIndexPricePayload.parse(message.payload);
+      const orderbook = exchange.orderbooks.get(symbol);
+      const response: GetIndexPriceEngineResponse = {
+        symbol,
+        indexPrice: orderbook.indexPrice.toString(),
+        updatedAt: orderbook.indexPriceUpdatedAt,
+      };
+      return response as unknown as Record<string, unknown>;
     }
     case "funding_settle": {
       const { period } = fundingSettlePayload.parse(message.payload);

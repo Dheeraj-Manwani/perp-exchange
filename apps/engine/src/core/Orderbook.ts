@@ -13,6 +13,7 @@ export class Orderbook {
   readonly asset: string;
   lastTradedPrice: bigint = 0n;
   indexPrice: bigint = 0n;
+  indexPriceUpdatedAt: number = 0;
 
   // Funding-rate accumulator: tracks time-weighted premium index in bps×ms
   private _premiumBpsAccum: bigint = 0n;
@@ -171,6 +172,7 @@ export class Orderbook {
       asset: this.asset,
       lastTradedPrice: this.lastTradedPrice,
       indexPrice: this.indexPrice,
+      indexPriceUpdatedAt: this.indexPriceUpdatedAt,
       _premiumBpsAccum: this._premiumBpsAccum,
       _fundingWindowStart: this._fundingWindowStart,
       _lastFundingUpdateAt: this._lastFundingUpdateAt,
@@ -187,6 +189,7 @@ export class Orderbook {
     const book = new Orderbook(data.asset);
     book.lastTradedPrice = data.lastTradedPrice;
     book.indexPrice = data.indexPrice;
+    book.indexPriceUpdatedAt = data.indexPriceUpdatedAt ?? 0;
     book._premiumBpsAccum = data._premiumBpsAccum ?? 0n;
     book._fundingWindowStart = data._fundingWindowStart ?? Date.now();
     book._lastFundingUpdateAt = data._lastFundingUpdateAt ?? Date.now();

@@ -4,6 +4,7 @@ export type EngineCommandType =
   | "onramp"
   | "create_user"
   | "index_price_update"
+  | "get_index_price"
   | "funding_settle";
 
 export interface EngineRequest {

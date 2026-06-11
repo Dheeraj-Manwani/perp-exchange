@@ -35,6 +35,13 @@ model Market {
   imageUrl   String?
   decimals   Int     @default(2)
 
+  // Contract specs (scaled-integer convention: tickSize is in price units
+  // of 10^-decimals; minQty is whole contracts, matching Order.qty)
+  tickSize             String @default("1")
+  minQty               Int    @default(1)
+  maxLeverage          Int    @default(10)
+  maintenanceMarginBps Int    @default(50)
+
   isActive Boolean @default(true)
 
   createdAt DateTime @default(now()) @db.Timestamptz()
@@ -44,6 +51,7 @@ model Market {
   fills           Fill[]
   positions       Position[]
   exchangeSymbols ExchangeSymbol[]
+  fundingRates    FundingRate[]
 }
 
 model ExchangeSymbol {
@@ -170,6 +178,24 @@ model Transaction {
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId, createdAt(sort: Desc)])
+}
+
+model FundingRate {
+  id       String @id @default(uuid()) @db.Uuid
+  marketId String @db.Uuid
+
+  // ISO-8601 string of the 8h settlement boundary (idempotency key with marketId)
+  period    String
+  rateBps   String
+  markPrice String
+  settledAt DateTime @db.Timestamptz()
+
+  createdAt DateTime @default(now()) @db.Timestamptz()
+
+  market Market @relation(fields: [marketId], references: [id])
+
+  @@unique([marketId, period])
+  @@index([marketId, settledAt(sort: Desc)])
 }
 
 model ProcessedEngineEvent {

@@ -33,3 +33,15 @@ export const fundingSettlePayload = z.object({
 });
 
 export type FundingSettlePayload = z.infer<typeof fundingSettlePayload>;
+
+export const getIndexPricePayload = z.object({
+  symbol: z.string(),
+});
+
+export type GetIndexPricePayload = z.infer<typeof getIndexPricePayload>;
+
+export interface GetIndexPriceEngineResponse {
+  symbol: string;
+  indexPrice: string;
+  updatedAt: number;
+}

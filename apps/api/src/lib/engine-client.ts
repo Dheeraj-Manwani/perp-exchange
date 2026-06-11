@@ -81,7 +81,7 @@ export const listenToEngine = async () => {
   }
 };
 
-const resolveEngineResponse = (response: EngineResponse) => {
+export const resolveEngineResponse = (response: EngineResponse) => {
   const pending = pendingResponses.get(response.correlationId);
   if (!pending) return;
   clearTimeout(pending.timeout);

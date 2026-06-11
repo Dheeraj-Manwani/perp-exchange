@@ -57,6 +57,15 @@ vi.mock("@repo/db", () => {
       balance: {
         create: vi.fn(),
       },
+      market: {
+        findMany: vi.fn(),
+        findUnique: vi.fn(),
+      },
+      fundingRate: {
+        findFirst: vi.fn(),
+        findMany: vi.fn(),
+        count: vi.fn(),
+      },
     },
     Prisma: {
       PrismaClientKnownRequestError,
@@ -65,6 +74,15 @@ vi.mock("@repo/db", () => {
     },
   };
 });
+
+// Mock Redis clients — tests must not require a live Redis.
+// market.service reads the index-price cache via publisher.hGet.
+vi.mock("../lib/redis-client", () => ({
+  publisher: { hGet: vi.fn() },
+  subscriber: {},
+  pubSubSubscriber: {},
+  connectRedis: vi.fn(),
+}));
 
 // Mock engine client — tests must not require a live Redis or engine process.
 // Individual tests can override sendToEngine via vi.mocked(sendToEngine).mockResolvedValue(...)
