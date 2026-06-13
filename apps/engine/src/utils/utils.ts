@@ -9,6 +9,19 @@ export function getOppositeSide(side: OrderSide): OrderSide {
   return side === "LONG" ? "SHORT" : "LONG";
 }
 
+/**
+ * Mark price used for PnL, liquidation triggers and the funding premium.
+ * Currently last-traded-price with an index-price fallback — Sprint 10 will
+ * replace the body with an index+basis formula, and everything downstream
+ * (PnL, liquidations, account summary) inherits it from this single place.
+ */
+export function getMarkPrice(book: {
+  lastTradedPrice: bigint;
+  indexPrice: bigint;
+}): bigint {
+  return book.lastTradedPrice > 0n ? book.lastTradedPrice : book.indexPrice;
+}
+
 // compare "<ms>-<seq>" numerically
 export function compareStreamIds(a: string, b: string): number {
   const [aMs = 0, aSeq = 0] = a.split("-").map(Number);

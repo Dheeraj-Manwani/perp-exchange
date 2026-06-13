@@ -1,5 +1,6 @@
 import { AccountService } from "../services/AccountService";
 import { OrderService } from "../services/OrderService";
+import { ReadQueryService } from "../services/ReadQueryService";
 import { existingMarkets } from "../utils/startup";
 import { EngineSnapshot } from "./EngineSnapshot";
 import { FundingEngine } from "./FundingEngine";
@@ -23,6 +24,7 @@ export class Exchange {
 
   readonly accountService: AccountService;
   readonly orderService: OrderService;
+  readonly readQuery: ReadQueryService;
 
   readonly insurance: InsuranceFund;
   readonly liquidation: LiquidationEngine;
@@ -35,6 +37,11 @@ export class Exchange {
 
     this.accountService = new AccountService(this.users);
     this.orderService = new OrderService(
+      this.users,
+      this.orderbooks,
+      this.positions,
+    );
+    this.readQuery = new ReadQueryService(
       this.users,
       this.orderbooks,
       this.positions,

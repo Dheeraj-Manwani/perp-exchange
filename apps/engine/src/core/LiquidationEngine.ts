@@ -8,7 +8,7 @@ import {
 } from "@repo/schema";
 import { logger } from "@repo/logger";
 import { mulDiv } from "../utils/math";
-import { getOppositeSide } from "../utils/utils";
+import { getMarkPrice, getOppositeSide } from "../utils/utils";
 import { InsuranceFund } from "./InsuranceFund";
 import { MatchingEngine } from "./MatchingEngine";
 import { OrderbookRegistry } from "./OrderbookRegistry";
@@ -213,10 +213,7 @@ export class LiquidationEngine {
     margin: bigint;
   }) {
     const orderbook = this.orderbooks.get(pos.market);
-    const markPrice =
-      orderbook.lastTradedPrice > 0n
-        ? orderbook.lastTradedPrice
-        : orderbook.indexPrice;
+    const markPrice = getMarkPrice(orderbook);
 
     const oppositeSide = getOppositeSide(pos.side);
 

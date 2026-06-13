@@ -15,6 +15,10 @@ export class Orderbook {
   indexPrice: bigint = 0n;
   indexPriceUpdatedAt: number = 0;
 
+  // Monotonically increasing counter bumped on every book mutation. Returned by
+  // get_orderbook as `lastUpdateId` so clients can later stitch a WS delta feed.
+  updateId: number = 0;
+
   // Funding-rate accumulator: tracks time-weighted premium index in bps×ms
   private _premiumBpsAccum: bigint = 0n;
   private _fundingWindowStart: number = Date.now();
@@ -100,7 +104,29 @@ export class Orderbook {
 
     const fills = level.consume(qty, skipUserId);
     if (level.isEmpty()) map.delete(String(price));
+    if (fills.length > 0) this.updateId += 1;
     return fills;
+  }
+
+  /**
+   * Aggregated qty per price level for one side, sorted best-first
+   * (bids descending, asks ascending) and capped at `depth` levels.
+   */
+  aggregateLevels(side: "bids" | "asks", depth: number): [bigint, bigint][] {
+    const map = side === "bids" ? this.bids : this.asks;
+    return [...map.values()]
+      .filter((l) => !l.isEmpty())
+      .sort((a, b) =>
+        side === "bids"
+          ? b.price - a.price > 0n
+            ? 1
+            : -1
+          : a.price - b.price > 0n
+            ? 1
+            : -1,
+      )
+      .slice(0, depth)
+      .map((l) => [l.price, BigInt(l.availableQty)] as [bigint, bigint]);
   }
 
   cancelOrder(
@@ -112,6 +138,7 @@ export class Orderbook {
       const result = level.cancelOrder(orderId);
       if (result !== null) {
         if (level.isEmpty()) map.delete(key);
+        this.updateId += 1;
         return { price: level.price, ...result };
       }
     }
@@ -127,6 +154,7 @@ export class Orderbook {
       map.set(key, level);
     }
     level.addOrder(order);
+    this.updateId += 1;
   }
 
   cancelUserOrders(userId: string): CancelledOrder[] {
@@ -164,6 +192,7 @@ export class Orderbook {
     }
     for (const key of emptyAskKeys) this.asks.delete(key);
 
+    if (cancelled.length > 0) this.updateId += 1;
     return cancelled;
   }
 
@@ -173,6 +202,7 @@ export class Orderbook {
       lastTradedPrice: this.lastTradedPrice,
       indexPrice: this.indexPrice,
       indexPriceUpdatedAt: this.indexPriceUpdatedAt,
+      updateId: this.updateId,
       _premiumBpsAccum: this._premiumBpsAccum,
       _fundingWindowStart: this._fundingWindowStart,
       _lastFundingUpdateAt: this._lastFundingUpdateAt,
@@ -190,6 +220,7 @@ export class Orderbook {
     book.lastTradedPrice = data.lastTradedPrice;
     book.indexPrice = data.indexPrice;
     book.indexPriceUpdatedAt = data.indexPriceUpdatedAt ?? 0;
+    book.updateId = data.updateId ?? 0;
     book._premiumBpsAccum = data._premiumBpsAccum ?? 0n;
     book._fundingWindowStart = data._fundingWindowStart ?? Date.now();
     book._lastFundingUpdateAt = data._lastFundingUpdateAt ?? Date.now();

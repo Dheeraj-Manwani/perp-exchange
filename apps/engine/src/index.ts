@@ -1,4 +1,8 @@
-import { EngineRequest, GROUP_ENGINE } from "@repo/schema";
+import {
+  EngineRequest,
+  GROUP_ENGINE,
+  READ_ONLY_ENGINE_TYPES,
+} from "@repo/schema";
 import { v4 as uuid } from "uuid";
 import { brokerClient, connectRedis } from "./utils/redis-client";
 import { sendPubSubResponse, sendResponse } from "./utils/response";
@@ -114,10 +118,10 @@ const LAST_ACKED_EVENT_ID_KEY = `${env.ENGINE_QUEUE}:last-acked-event-id`;
         const request = parsed as EngineRequest;
         logger.info(request.type);
 
-        // Read-only queries (e.g. get_index_price) reply over the pubsub
-        // channel so the backend's loopback resolves them via pubsub, leaving
-        // the durable response stream for state-changing commands.
-        const replyViaPubSub = request.type === "get_index_price";
+        // Read-only queries reply over the pubsub channel so the backend's
+        // loopback resolves them via pubsub, leaving the durable response stream
+        // for state-changing commands.
+        const replyViaPubSub = READ_ONLY_ENGINE_TYPES.has(request.type);
 
         try {
           const data = handleEngineRequest(request);

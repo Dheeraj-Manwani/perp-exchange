@@ -4,6 +4,7 @@ import {
   EngineResponse,
   GROUP_MAIN_BACKEND,
   PendingResponse,
+  READ_ONLY_ENGINE_TYPES,
 } from "@repo/schema";
 import { env } from "./env";
 import { v4 as uuid } from "uuid";
@@ -55,6 +56,24 @@ export const sendToEngine = async (
   );
 
   return responsePromise;
+};
+
+/**
+ * Read-only engine query. The request still travels to the engine over the
+ * command queue (via `sendToEngine`); the engine infers from the read-only type
+ * that it must reply on the pub/sub channel rather than the durable response
+ * stream. The reply resolves through `resolveEngineResponse` (wired by
+ * `initPubSub`), reusing the same `pendingResponses` map as the stream path.
+ */
+export const sendToEngineWithPubSubResponse = (
+  type: EngineCommandType,
+  payload: Record<string, unknown>,
+  userId: string,
+): Promise<EngineResponse> => {
+  if (!READ_ONLY_ENGINE_TYPES.has(type)) {
+    throw new Error(`${type} is not a read-only engine query`);
+  }
+  return sendToEngine(type, payload, userId);
 };
 
 export const listenToEngine = async () => {

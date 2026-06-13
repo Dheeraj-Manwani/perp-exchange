@@ -2,8 +2,13 @@ import {
   cancelOrderPayload,
   EngineRequest,
   fundingSettlePayload,
+  getAccountSummaryPayload,
   GetIndexPriceEngineResponse,
   getIndexPricePayload,
+  getMarkPricePayload,
+  getOrderbookPayload,
+  getPositionPayload,
+  getPositionsPayload,
   IndexPriceUpdateEngineResponse,
   indexPriceChangePayload,
   onRampPayload,
@@ -62,6 +67,40 @@ export function handleEngineRequest(
         updatedAt: orderbook.indexPriceUpdatedAt,
       };
       return response as unknown as Record<string, unknown>;
+    }
+    case "get_orderbook": {
+      const { symbol, depth } = getOrderbookPayload.parse(message.payload);
+      return exchange.readQuery.getOrderbook(symbol, depth) as unknown as Record<
+        string,
+        unknown
+      >;
+    }
+    case "get_positions": {
+      getPositionsPayload.parse(message.payload ?? {});
+      return exchange.readQuery.getPositions(message.userId) as unknown as Record<
+        string,
+        unknown
+      >;
+    }
+    case "get_position": {
+      const { symbol } = getPositionPayload.parse(message.payload);
+      return exchange.readQuery.getPosition(
+        message.userId,
+        symbol,
+      ) as unknown as Record<string, unknown>;
+    }
+    case "get_mark_price": {
+      const { symbol } = getMarkPricePayload.parse(message.payload);
+      return exchange.readQuery.getMarkPrice(symbol) as unknown as Record<
+        string,
+        unknown
+      >;
+    }
+    case "get_account_summary": {
+      getAccountSummaryPayload.parse(message.payload ?? {});
+      return exchange.readQuery.getAccountSummary(
+        message.userId,
+      ) as unknown as Record<string, unknown>;
     }
     case "funding_settle": {
       const { period } = fundingSettlePayload.parse(message.payload);

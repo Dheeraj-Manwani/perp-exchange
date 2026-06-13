@@ -9,6 +9,10 @@ export class PositionManager {
       ?.find((pos) => pos.market === market && pos.isOpen);
   }
 
+  getOpen(userId: string): Position[] {
+    return (this.positions.get(userId) ?? []).filter((pos) => pos.isOpen);
+  }
+
   add(position: Position) {
     const existing = this.positions.get(position.userId) ?? [];
     // removing closed positions

@@ -4,7 +4,7 @@ import {
   GetIndexPriceEngineResponse,
 } from "@repo/schema";
 import { AppError, ErrorCode } from "../errors/AppError";
-import { sendToEngine } from "../lib/engine-client";
+import { sendToEngineWithPubSubResponse } from "../lib/engine-client";
 import * as marketRepository from "../repository/market.repository";
 
 const FUNDING_INTERVAL_MS = FUNDING_INTERVAL_SECONDS * 1000;
@@ -36,7 +36,7 @@ export const getMarket = async (symbol: string) => {
 export const getIndexPrice = async (symbol: string) => {
   const market = await requireMarket(symbol);
 
-  const response = await sendToEngine(
+  const response = await sendToEngineWithPubSubResponse(
     "get_index_price",
     { symbol: market.symbol },
     "system",
