@@ -127,6 +127,7 @@ describe("POST /onramp", () => {
       vi.mocked(sendToEngine).mockResolvedValue({
         correlationId: "cid-1",
         userId: "test-user-id",
+        sourceEventId: "0-1",
         type: "onramp" as const,
         ok: true,
         data: undefined,
@@ -154,6 +155,7 @@ describe("POST /onramp", () => {
       vi.mocked(sendToEngine).mockResolvedValue({
         correlationId: "cid-2",
         userId: "test-user-id",
+        sourceEventId: "0-2",
         type: "onramp" as const,
         ok: true,
         data: undefined,
@@ -176,6 +178,7 @@ describe("POST /onramp", () => {
       vi.mocked(sendToEngine).mockResolvedValue({
         correlationId: "cid-3",
         userId: "test-user-id",
+        sourceEventId: "0-3",
         type: "onramp" as const,
         ok: false,
         error: "account_not_found",

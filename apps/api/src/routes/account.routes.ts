@@ -3,7 +3,7 @@ import * as accountController from "../controller/account.controller";
 
 const router: Router = Router();
 
-// Account & balance history (sprint 4). All authenticated.
+router.get("/account", accountController.getAccountSummary);
 router.get("/account/balances", accountController.getBalances);
 router.get("/account/transactions", accountController.getTransactions);
 router.get("/account/funding-payments", accountController.getFundingPayments);

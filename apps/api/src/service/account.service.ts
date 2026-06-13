@@ -1,6 +1,7 @@
 import {
   AccountTransactionsQuery,
   FundingPaymentsQuery,
+  GetAccountSummaryEngineResponse,
   LiquidationsQuery,
   TAKER_FEE_RATE,
   MAKER_FEE_RATE,
@@ -8,6 +9,8 @@ import {
   MAKER_FEE_NUMERATOR,
   FEE_DENOMINATOR,
 } from "@repo/schema";
+import { AppError, ErrorCode } from "../errors/AppError";
+import { sendToEngineWithPubSubResponse } from "../lib/engine-client";
 import * as accountRepository from "../repository/account.repository";
 
 // ─── Balances ─────────────────────────────────────────────────────────────────
@@ -20,6 +23,26 @@ export const getBalances = async (userId: string) => {
     locked: b.lockedBalance,
     updatedAt: b.updatedAt,
   }));
+};
+
+export const getAccountSummary = async (userId: string) => {
+  const [response, balances] = await Promise.all([
+    sendToEngineWithPubSubResponse("get_account_summary", {}, userId),
+    getBalances(userId),
+  ]);
+
+  if (!response.ok || !response.data) {
+    throw new AppError(
+      503,
+      ErrorCode.SERVICE_UNAVAILABLE,
+      response.error ?? "Account summary unavailable",
+    );
+  }
+
+  const { equity, availableMargin, usedMargin, unrealisedPnl } =
+    response.data as unknown as GetAccountSummaryEngineResponse;
+
+  return { equity, availableMargin, usedMargin, unrealisedPnl, balances };
 };
 
 // ─── Transaction ledger ───────────────────────────────────────────────────────

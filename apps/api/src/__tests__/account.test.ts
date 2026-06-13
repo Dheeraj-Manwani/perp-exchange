@@ -4,6 +4,7 @@ import { prisma } from "@repo/db";
 import { app } from "../app";
 import { buildMockUser, generateAccessToken, TEST_USER_ID } from "./helpers";
 import { TAKER_FEE_RATE, MAKER_FEE_RATE } from "@repo/schema";
+import { sendToEngineWithPubSubResponse } from "../lib/engine-client";
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -15,6 +16,71 @@ function authed(method: "get" | "delete", path: string) {
     [method](path)
     .set("Authorization", `Bearer ${generateAccessToken()}`);
 }
+
+// ─── GET /account ────────────────────────────────────────────────────────────
+
+describe("GET /account", () => {
+  it("returns 401 without auth", async () => {
+    const res = await request(app).get("/account");
+    expect(res.status).toBe(401);
+  });
+
+  it("merges the engine equity summary with DB balances", async () => {
+    vi.mocked(sendToEngineWithPubSubResponse).mockResolvedValue({
+      ok: true,
+      data: {
+        equity: "11500",
+        availableMargin: "9000",
+        usedMargin: "2500",
+        unrealisedPnl: "500",
+      },
+    } as any);
+    vi.mocked(prisma.balance.findMany).mockResolvedValue([
+      {
+        asset: "USD",
+        availableBalance: "9000",
+        lockedBalance: "2000",
+        updatedAt: new Date("2026-06-12T10:00:00.000Z"),
+      },
+    ] as any);
+
+    const res = await authed("get", "/account");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      equity: "11500",
+      availableMargin: "9000",
+      usedMargin: "2500",
+      unrealisedPnl: "500",
+    });
+    expect(res.body.data.balances[0]).toMatchObject({
+      asset: "USD",
+      available: "9000",
+      locked: "2000",
+    });
+    expect(vi.mocked(sendToEngineWithPubSubResponse)).toHaveBeenCalledWith(
+      "get_account_summary",
+      {},
+      TEST_USER_ID,
+    );
+  });
+
+  it("returns 503 when the engine summary is unavailable", async () => {
+    vi.mocked(sendToEngineWithPubSubResponse).mockResolvedValue({
+      ok: false,
+      error: "engine down",
+    } as any);
+    vi.mocked(prisma.balance.findMany).mockResolvedValue([] as any);
+
+    const res = await authed("get", "/account");
+
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({
+      success: false,
+      code: "SERVICE_UNAVAILABLE",
+    });
+  });
+});
 
 // ─── GET /account/balances ───────────────────────────────────────────────────
 

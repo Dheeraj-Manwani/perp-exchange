@@ -7,6 +7,12 @@ import {
 import * as accountService from "../service/account.service";
 import { ok } from "../lib/response";
 
+// GET /account
+export const getAccountSummary = async (req: Request, res: Response) => {
+  const data = await accountService.getAccountSummary(req.userId!);
+  ok(res, data);
+};
+
 // GET /account/balances
 export const getBalances = async (req: Request, res: Response) => {
   const data = await accountService.getBalances(req.userId!);

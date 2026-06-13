@@ -5,6 +5,7 @@ import balanceRouter from "./balances.routes";
 import marketRouter from "./market.routes";
 import fillsRouter from "./fills.routes";
 import accountRouter from "./account.routes";
+import positionsRouter from "./positions.routes";
 import { Router } from "express";
 
 export const routes: Router = Router();
@@ -22,3 +23,4 @@ routes.use(orderRouter);
 routes.use(balanceRouter);
 routes.use(fillsRouter);
 routes.use(accountRouter);
+routes.use(positionsRouter);

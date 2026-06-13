@@ -20,6 +20,12 @@ export const getIndexPrice = async (req: Request, res: Response) => {
   ok(res, data);
 };
 
+export const getMarkPrice = async (req: Request, res: Response) => {
+  const symbol = marketSymbolParam.parse(req.params.symbol);
+  const data = await marketService.getMarkPrice(symbol);
+  ok(res, data);
+};
+
 export const getFundingRate = async (req: Request, res: Response) => {
   const symbol = marketSymbolParam.parse(req.params.symbol);
   const data = await marketService.getFundingRate(symbol);

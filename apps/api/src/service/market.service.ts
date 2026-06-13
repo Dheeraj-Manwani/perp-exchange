@@ -2,6 +2,7 @@ import {
   FUNDING_INTERVAL_SECONDS,
   FundingRateHistoryQuery,
   GetIndexPriceEngineResponse,
+  GetMarkPriceEngineResponse,
 } from "@repo/schema";
 import { AppError, ErrorCode } from "../errors/AppError";
 import { sendToEngineWithPubSubResponse } from "../lib/engine-client";
@@ -62,6 +63,38 @@ export const getIndexPrice = async (symbol: string) => {
   }
 
   return { symbol: market.symbol, indexPrice, updatedAt };
+};
+
+export const getMarkPrice = async (symbol: string) => {
+  const market = await requireMarket(symbol);
+
+  const response = await sendToEngineWithPubSubResponse(
+    "get_mark_price",
+    { symbol: market.symbol },
+    "system",
+  );
+
+  if (!response.ok || !response.data) {
+    throw new AppError(
+      503,
+      ErrorCode.SERVICE_UNAVAILABLE,
+      response.error ?? `Mark price unavailable for ${market.symbol}`,
+    );
+  }
+
+  const { markPrice, indexPrice, updatedAt } =
+    response.data as unknown as GetMarkPriceEngineResponse;
+
+  // No trades and no index yet → engine has no basis for a mark price.
+  if (markPrice === "0") {
+    throw new AppError(
+      503,
+      ErrorCode.SERVICE_UNAVAILABLE,
+      `Mark price unavailable for ${market.symbol}`,
+    );
+  }
+
+  return { symbol: market.symbol, markPrice, indexPrice, updatedAt };
 };
 
 export const getFundingRate = async (symbol: string) => {

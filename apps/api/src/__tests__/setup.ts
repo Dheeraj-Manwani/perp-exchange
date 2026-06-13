@@ -99,9 +99,12 @@ vi.mock("../lib/redis-client", () => ({
 }));
 
 // Mock engine client — tests must not require a live Redis or engine process.
-// Individual tests can override sendToEngine via vi.mocked(sendToEngine).mockResolvedValue(...)
+// Individual tests can override the engine reply via
+// vi.mocked(sendToEngine|sendToEngineWithPubSubResponse).mockResolvedValue(...)
 vi.mock("../lib/engine-client", () => ({
   sendToEngine: vi.fn().mockResolvedValue({ correlationId: "test-cid", ok: true, data: undefined }),
+  sendToEngineWithPubSubResponse: vi.fn().mockResolvedValue({ correlationId: "test-cid", ok: true, data: undefined }),
   listenToEngine: vi.fn().mockResolvedValue(undefined),
+  resolveEngineResponse: vi.fn(),
   pendingResponses: new Map(),
 }));

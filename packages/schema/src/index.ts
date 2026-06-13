@@ -8,3 +8,4 @@ export * from "./engine-payload";
 export * from "./markets";
 export * from "./fills";
 export * from "./account";
+export * from "./positions";

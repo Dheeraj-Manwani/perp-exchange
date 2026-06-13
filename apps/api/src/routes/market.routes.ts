@@ -7,6 +7,7 @@ const router: Router = Router();
 router.get("/markets", marketController.getMarkets);
 router.get("/markets/:symbol", marketController.getMarket);
 router.get("/markets/:symbol/index-price", marketController.getIndexPrice);
+router.get("/markets/:symbol/mark-price", marketController.getMarkPrice);
 router.get("/markets/:symbol/funding-rate", marketController.getFundingRate);
 router.get(
   "/markets/:symbol/funding-rate/history",

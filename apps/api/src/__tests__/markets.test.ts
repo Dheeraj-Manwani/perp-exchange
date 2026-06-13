@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import request from "supertest";
 import { prisma } from "@repo/db";
 import { app } from "../app";
-import { sendToEngine } from "../lib/engine-client";
+import { sendToEngineWithPubSubResponse } from "../lib/engine-client";
 import { getNextFundingTime } from "../service/market.service";
 
 beforeEach(() => {
@@ -112,7 +112,7 @@ describe("GET /markets/:symbol/index-price", () => {
     vi.mocked(prisma.market.findUnique).mockResolvedValue(
       buildMockMarket() as any,
     );
-    vi.mocked(sendToEngine).mockResolvedValue({
+    vi.mocked(sendToEngineWithPubSubResponse).mockResolvedValue({
       ok: true,
       data: {
         symbol: "BTC",
@@ -129,7 +129,7 @@ describe("GET /markets/:symbol/index-price", () => {
       indexPrice: "6723450",
       updatedAt: 1765000000000,
     });
-    expect(vi.mocked(sendToEngine)).toHaveBeenCalledWith(
+    expect(vi.mocked(sendToEngineWithPubSubResponse)).toHaveBeenCalledWith(
       "get_index_price",
       { symbol: "BTC" },
       "system",
@@ -140,7 +140,7 @@ describe("GET /markets/:symbol/index-price", () => {
     vi.mocked(prisma.market.findUnique).mockResolvedValue(
       buildMockMarket() as any,
     );
-    vi.mocked(sendToEngine).mockResolvedValue({
+    vi.mocked(sendToEngineWithPubSubResponse).mockResolvedValue({
       ok: true,
       data: { symbol: "BTC", indexPrice: "0", updatedAt: 0 },
     } as any);
@@ -158,6 +158,66 @@ describe("GET /markets/:symbol/index-price", () => {
     vi.mocked(prisma.market.findUnique).mockResolvedValue(null);
 
     const res = await request(app).get("/markets/DOGE/index-price");
+
+    expect(res.status).toBe(404);
+  });
+});
+
+// ─── GET /markets/:symbol/mark-price ─────────────────────────────────────────
+
+describe("GET /markets/:symbol/mark-price", () => {
+  it("returns the mark + index price from the engine (public, no auth)", async () => {
+    vi.mocked(prisma.market.findUnique).mockResolvedValue(
+      buildMockMarket() as any,
+    );
+    vi.mocked(sendToEngineWithPubSubResponse).mockResolvedValue({
+      ok: true,
+      data: {
+        symbol: "BTC",
+        markPrice: "6724000",
+        indexPrice: "6723450",
+        updatedAt: 1765000000000,
+      },
+    } as any);
+
+    const res = await request(app).get("/markets/BTC/mark-price");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({
+      symbol: "BTC",
+      markPrice: "6724000",
+      indexPrice: "6723450",
+      updatedAt: 1765000000000,
+    });
+    expect(vi.mocked(sendToEngineWithPubSubResponse)).toHaveBeenCalledWith(
+      "get_mark_price",
+      { symbol: "BTC" },
+      "system",
+    );
+  });
+
+  it("returns 503 when the engine has no price yet", async () => {
+    vi.mocked(prisma.market.findUnique).mockResolvedValue(
+      buildMockMarket() as any,
+    );
+    vi.mocked(sendToEngineWithPubSubResponse).mockResolvedValue({
+      ok: true,
+      data: { symbol: "BTC", markPrice: "0", indexPrice: "0", updatedAt: 0 },
+    } as any);
+
+    const res = await request(app).get("/markets/BTC/mark-price");
+
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({
+      success: false,
+      code: "SERVICE_UNAVAILABLE",
+    });
+  });
+
+  it("returns 404 for an unknown market", async () => {
+    vi.mocked(prisma.market.findUnique).mockResolvedValue(null);
+
+    const res = await request(app).get("/markets/DOGE/mark-price");
 
     expect(res.status).toBe(404);
   });
