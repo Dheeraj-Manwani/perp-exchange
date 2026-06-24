@@ -173,6 +173,16 @@ export interface PublicTrade {
   createdAt: string;
 }
 
+// [price, qty] as scaled-integer / contract strings.
+export type OrderbookLevel = [string, string];
+
+export interface Orderbook {
+  symbol: string;
+  bids: OrderbookLevel[];
+  asks: OrderbookLevel[];
+  lastUpdateId: number;
+}
+
 export interface OrderDto {
   orderId: string;
   symbol: string;
@@ -285,6 +295,8 @@ export const api = {
     request<IndexPrice>(`/markets/${symbol}/index-price`),
   getFundingRate: (symbol: string) =>
     request<FundingRate>(`/markets/${symbol}/funding-rate`),
+  getOrderbook: (symbol: string, depth = 20) =>
+    request<Orderbook>(`/markets/${symbol}/orderbook`, { query: { depth } }),
   getPublicTrades: async (symbol: string, limit = 50): Promise<PublicTrade[]> => {
     const res = await request<{ symbol: string; trades: PublicTrade[] }>(
       `/markets/${symbol}/trades`,

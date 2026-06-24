@@ -3,7 +3,7 @@
 import * as React from "react";
 
 import { useTrade } from "./trade-context";
-import { api, type PublicTrade } from "@/lib/api";
+import { api, type PublicTrade, type OrderbookLevel } from "@/lib/api";
 import { scaledToNumber, formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +32,10 @@ function buildBook(mid: number) {
       });
     }
     const max = Math.max(...levels.map((l) => l.cumulative));
-    return levels.map((l) => ({ ...l, fillPercent: (l.cumulative / max) * 100 }));
+    return levels.map((l) => ({
+      ...l,
+      fillPercent: (l.cumulative / max) * 100,
+    }));
   };
   return { asks: make(1), bids: make(-1) };
 }
@@ -61,7 +64,7 @@ export function OrderBook() {
       </div>
 
       {tab === "book" ? (
-        <BookView mid={markPrice} />
+        <BookView symbol={market?.symbol} decimals={decimals} mid={markPrice} />
       ) : (
         <TradesView symbol={market?.symbol} decimals={decimals} />
       )}
@@ -69,28 +72,102 @@ export function OrderBook() {
   );
 }
 
-function BookView({ mid }: { mid: number | null }) {
-  const [book, setBook] = React.useState<ReturnType<typeof buildBook> | null>(
-    null,
-  );
+interface BookState {
+  bids: Level[];
+  asks: Level[];
+  synthetic: boolean;
+}
+
+// Engine returns levels sorted (bids desc, asks asc) as [price, qty] strings.
+// Cumulative is summed best→worst; the depth bar is scaled to the deepest level.
+function toLevels(raw: OrderbookLevel[], decimals: number): Level[] {
+  let cum = 0;
+  const levels = raw.map(([price, qty]) => {
+    const size = Number(qty);
+    cum += size;
+    return {
+      price: scaledToNumber(price, decimals),
+      size,
+      cumulative: cum,
+      fillPercent: 0,
+    };
+  });
+  const max = levels.length ? levels[levels.length - 1]!.cumulative : 0;
+  return levels.map((l) => ({
+    ...l,
+    fillPercent: max ? (l.cumulative / max) * 100 : 0,
+  }));
+}
+
+function BookView({
+  symbol,
+  decimals,
+  mid,
+}: {
+  symbol: string | undefined;
+  decimals: number;
+  mid: number | null;
+}) {
+  const [book, setBook] = React.useState<BookState | null>(null);
 
   React.useEffect(() => {
-    if (mid === null) return;
-    setBook(buildBook(mid));
-    const id = setInterval(() => setBook(buildBook(mid)), 2500);
-    return () => clearInterval(id);
-  }, [mid]);
+    if (!symbol) return;
+    let cancelled = false;
 
-  if (mid === null || !book) {
+    const poll = async () => {
+      try {
+        const ob = await api.getOrderbook(symbol, 20);
+        if (cancelled) return;
+        setBook({
+          bids: toLevels(ob.bids, decimals),
+          asks: toLevels(ob.asks, decimals),
+          synthetic: false,
+        });
+      } catch {
+        // Engine/endpoint offline → synthetic depth around the mark price so the
+        // panel stays populated (clearly flagged below).
+        if (cancelled) return;
+        if (mid !== null) {
+          const b = buildBook(mid);
+          setBook({ bids: b.bids, asks: b.asks, synthetic: true });
+        } else {
+          setBook(null);
+        }
+      }
+    };
+
+    poll();
+    const id = setInterval(poll, 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [symbol, decimals, mid]);
+
+  if (!book) {
     return (
       <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-t3">
-        Live price unavailable
+        Orderbook unavailable
       </div>
     );
   }
 
-  const spread = book.asks[0]!.price - book.bids[0]!.price;
-  const spreadPct = (spread / mid) * 100;
+  if (book.bids.length === 0 && book.asks.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-t3">
+        No resting orders
+      </div>
+    );
+  }
+
+  const bestAsk = book.asks[0]?.price ?? null;
+  const bestBid = book.bids[0]?.price ?? null;
+  const spread =
+    bestAsk !== null && bestBid !== null ? bestAsk - bestBid : null;
+  const refPrice =
+    bestAsk !== null && bestBid !== null ? (bestAsk + bestBid) / 2 : mid;
+  const spreadPct =
+    spread !== null && refPrice ? (spread / refPrice) * 100 : null;
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -109,14 +186,19 @@ function BookView({ mid }: { mid: number | null }) {
       </div>
 
       <div className="grid grid-cols-3 border-y border-line-light bg-elevated px-2.5 py-1">
-        <span className="font-mono text-[10px] font-semibold text-yellow">
-          Spread
+        <span
+          className="font-mono text-[10px] font-semibold text-yellow"
+          title={
+            book.synthetic ? "Simulated depth — engine offline" : undefined
+          }
+        >
+          Spread{book.synthetic ? " *" : ""}
         </span>
         <span className="font-mono text-[10px] text-yellow">
-          {spread.toFixed(2)}
+          {spread !== null ? spread.toFixed(2) : "—"}
         </span>
         <span className="font-mono text-[10px] text-yellow">
-          {spreadPct.toFixed(3)}%
+          {spreadPct !== null ? `${spreadPct.toFixed(3)}%` : "—"}
         </span>
       </div>
 
@@ -199,7 +281,9 @@ function TradesView({
         {trades === null ? (
           <div className="p-4 text-center text-xs text-t3">Loading…</div>
         ) : trades.length === 0 ? (
-          <div className="p-4 text-center text-xs text-t3">No recent trades</div>
+          <div className="p-4 text-center text-xs text-t3">
+            No recent trades
+          </div>
         ) : (
           trades.map((t) => {
             const isLong = t.takerSide === "LONG";

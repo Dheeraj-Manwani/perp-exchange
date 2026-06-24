@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
-import { fundingRateHistoryQuery, marketSymbolParam } from "@repo/schema";
+import {
+  fundingRateHistoryQuery,
+  marketSymbolParam,
+  orderbookQuery,
+} from "@repo/schema";
 import * as marketService from "../service/market.service";
 import { ok } from "../lib/response";
 
@@ -36,5 +40,12 @@ export const getFundingRateHistory = async (req: Request, res: Response) => {
   const symbol = marketSymbolParam.parse(req.params.symbol);
   const query = fundingRateHistoryQuery.parse(req.query);
   const data = await marketService.getFundingRateHistory(symbol, query);
+  ok(res, data);
+};
+
+export const getOrderbook = async (req: Request, res: Response) => {
+  const symbol = marketSymbolParam.parse(req.params.symbol);
+  const { depth } = orderbookQuery.parse(req.query);
+  const data = await marketService.getOrderbook(symbol, depth);
   ok(res, data);
 };

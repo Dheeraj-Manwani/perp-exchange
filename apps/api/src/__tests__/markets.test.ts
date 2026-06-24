@@ -338,3 +338,93 @@ describe("getNextFundingTime", () => {
     expect(getNextFundingTime(new Date(now)).toISOString()).toBe(expected);
   });
 });
+
+// ─── GET /markets/:symbol/orderbook ──────────────────────────────────────────
+
+describe("GET /markets/:symbol/orderbook", () => {
+  it("returns bids/asks + lastUpdateId from the engine (public, no auth)", async () => {
+    vi.mocked(prisma.market.findUnique).mockResolvedValue(
+      buildMockMarket() as any,
+    );
+    vi.mocked(sendToEngineWithPubSubResponse).mockResolvedValue({
+      ok: true,
+      data: {
+        symbol: "BTC",
+        bids: [["6723400", "5"]],
+        asks: [["6723500", "3"]],
+        lastUpdateId: 42,
+      },
+    } as any);
+
+    const res = await request(app).get("/markets/BTC/orderbook");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({
+      symbol: "BTC",
+      bids: [["6723400", "5"]],
+      asks: [["6723500", "3"]],
+      lastUpdateId: 42,
+    });
+    expect(vi.mocked(sendToEngineWithPubSubResponse)).toHaveBeenCalledWith(
+      "get_orderbook",
+      { symbol: "BTC", depth: 20 },
+      "system",
+    );
+  });
+
+  it("passes a custom ?depth through to the engine", async () => {
+    vi.mocked(prisma.market.findUnique).mockResolvedValue(
+      buildMockMarket() as any,
+    );
+    vi.mocked(sendToEngineWithPubSubResponse).mockResolvedValue({
+      ok: true,
+      data: { symbol: "BTC", bids: [], asks: [], lastUpdateId: 1 },
+    } as any);
+
+    const res = await request(app).get("/markets/BTC/orderbook?depth=50");
+
+    expect(res.status).toBe(200);
+    expect(vi.mocked(sendToEngineWithPubSubResponse)).toHaveBeenCalledWith(
+      "get_orderbook",
+      { symbol: "BTC", depth: 50 },
+      "system",
+    );
+  });
+
+  it("rejects a depth above the 500 cap with 400", async () => {
+    vi.mocked(prisma.market.findUnique).mockResolvedValue(
+      buildMockMarket() as any,
+    );
+
+    const res = await request(app).get("/markets/BTC/orderbook?depth=600");
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  it("returns 503 when the engine query fails", async () => {
+    vi.mocked(prisma.market.findUnique).mockResolvedValue(
+      buildMockMarket({ symbol: "ETH" }) as any,
+    );
+    vi.mocked(sendToEngineWithPubSubResponse).mockResolvedValue({
+      ok: false,
+      error: "engine down",
+    } as any);
+
+    const res = await request(app).get("/markets/ETH/orderbook");
+
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({
+      success: false,
+      code: "SERVICE_UNAVAILABLE",
+    });
+  });
+
+  it("returns 404 for an unknown market", async () => {
+    vi.mocked(prisma.market.findUnique).mockResolvedValue(null);
+
+    const res = await request(app).get("/markets/DOGE/orderbook");
+
+    expect(res.status).toBe(404);
+  });
+});
