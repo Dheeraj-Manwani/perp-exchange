@@ -169,7 +169,7 @@ export interface PublicTrade {
   id: string;
   price: string;
   qty: number;
-  side?: OrderSide;
+  takerSide?: OrderSide;
   createdAt: string;
 }
 
@@ -285,8 +285,13 @@ export const api = {
     request<IndexPrice>(`/markets/${symbol}/index-price`),
   getFundingRate: (symbol: string) =>
     request<FundingRate>(`/markets/${symbol}/funding-rate`),
-  getPublicTrades: (symbol: string, limit = 50) =>
-    request<PublicTrade[]>(`/markets/${symbol}/trades`, { query: { limit } }),
+  getPublicTrades: async (symbol: string, limit = 50): Promise<PublicTrade[]> => {
+    const res = await request<{ symbol: string; trades: PublicTrade[] }>(
+      `/markets/${symbol}/trades`,
+      { query: { limit } },
+    );
+    return res.trades ?? [];
+  },
 
   // orders (auth)
   createOrder: (input: CreateOrderInput) =>

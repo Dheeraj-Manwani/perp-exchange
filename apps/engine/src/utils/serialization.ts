@@ -1,19 +1,23 @@
 import { Packr, Unpackr } from "msgpackr";
-import { compress, decompress } from "@mongodb-js/zstd";
 import { createHash } from "node:crypto";
+import { gzip, gunzip } from "node:zlib";
+import { promisify } from "node:util";
+
+const gzipAsync = promisify(gzip);
+const gunzipAsync = promisify(gunzip);
 
 export interface EncodedSnapshot {
   blob: Buffer;
   checksum: string;
   sizeBytes: number;
 }
-const ZSTD_LEVEL = 3;
+const COMPRESSION_LEVEL = 6;
 const packr = new Packr({ useRecords: false, bundleStrings: true });
 const unpackr = new Unpackr({ useRecords: false, bundleStrings: true });
 
 export async function encodeSnapshot<T>(data: T): Promise<EncodedSnapshot> {
   const packed = packr.pack(data);
-  const blob = await compress(packed, ZSTD_LEVEL);
+  const blob = await gzipAsync(packed, { level: COMPRESSION_LEVEL });
 
   const checksum = createHash("sha256").update(blob).digest("hex");
   const sizeBytes = blob.length;
@@ -32,6 +36,6 @@ export async function decodeSnapshot<T>(
     );
   }
 
-  const decompressed = await decompress(blob);
+  const decompressed = await gunzipAsync(blob);
   return unpackr.unpack(decompressed) as T;
 }

@@ -11,6 +11,7 @@ import jwt from "jsonwebtoken";
 import { env } from "../lib/env";
 import { sendToEngine } from "../lib/engine-client";
 import { createBalanceAccount } from "../repository/balances.repository";
+import { logger } from "@repo/logger";
 
 export const signUp = async (data: AuthInput) => {
   const { username, password } = data;
@@ -22,14 +23,18 @@ export const signUp = async (data: AuthInput) => {
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = await createUser(username, hashedPassword);
 
-  await Promise.all([
-    createBalanceAccount(user.id),
-    sendToEngine(
-      "create_user",
-      { userId: user.id, username: user.username },
-      user.id,
+  await createBalanceAccount(user.id);
+
+  void sendToEngine(
+    "create_user",
+    { userId: user.id, username: user.username },
+    user.id,
+  ).catch((err) =>
+    logger.error(
+      { err: String(err), userId: user.id },
+      "create_user engine dispatch did not confirm",
     ),
-  ]);
+  );
 
   const accessToken = getAccessToken(user);
   const refreshToken = getRefreshToken(user.id);

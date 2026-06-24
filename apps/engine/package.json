@@ -12,7 +12,6 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@mongodb-js/zstd": "^7.0.0",
     "@repo/db": "workspace:*",
     "@repo/logger": "workspace:*",
     "@repo/schema": "workspace:*",

@@ -173,7 +173,7 @@ function TradesView({
     const poll = async () => {
       try {
         const t = await api.getPublicTrades(symbol, 40);
-        if (!cancelled) setTrades(t);
+        if (!cancelled) setTrades(Array.isArray(t) ? t : []);
       } catch {
         if (!cancelled) setTrades([]);
       }
@@ -202,7 +202,7 @@ function TradesView({
           <div className="p-4 text-center text-xs text-t3">No recent trades</div>
         ) : (
           trades.map((t) => {
-            const isLong = t.side === "LONG";
+            const isLong = t.takerSide === "LONG";
             return (
               <div
                 key={t.id}
@@ -211,7 +211,7 @@ function TradesView({
                 <span
                   className={cn(
                     "font-mono text-[11px]",
-                    t.side
+                    t.takerSide
                       ? isLong
                         ? "text-up"
                         : "text-down"

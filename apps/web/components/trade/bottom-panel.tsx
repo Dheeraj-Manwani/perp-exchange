@@ -127,7 +127,7 @@ export function BottomPanel() {
       <div className="flex h-52 flex-shrink-0 flex-col items-center justify-center gap-3 border-t border-border bg-panel text-sm text-t2">
         Sign in to view your positions, orders and history.
         <Button variant="outline" size="sm" onClick={() => setAuthOpen(true)}>
-          Connect Wallet
+          Sign In
         </Button>
       </div>
     );

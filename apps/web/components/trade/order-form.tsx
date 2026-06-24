@@ -252,7 +252,7 @@ export function OrderForm() {
           onClick={submit}
         >
           {!isAuthenticated
-            ? "Connect to Trade"
+            ? "Sign In to Trade"
             : submitting
               ? "Submitting…"
               : isLong
